@@ -660,6 +660,100 @@ body {
   background-position: 0 11px;
 }
 
+/* ===== Rich text editor ===== */
+.rich-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 5px 6px;
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.rich-toolbar button {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink-medium);
+  border-radius: 2px;
+  min-width: 28px;
+  transition: all 0.15s;
+}
+.rich-toolbar button:hover {
+  background: var(--gold-soft);
+  color: var(--ink-dark);
+}
+.rich-toolbar button.active {
+  background: var(--gold-soft);
+  color: var(--ink-dark);
+  border-color: var(--gold);
+}
+
+.rich-editor {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--ink-dark);
+  background: var(--bg-parchment);
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 12px 14px;
+  min-height: 160px;
+  line-height: 1.7;
+  outline: none;
+  transition: border-color 0.2s;
+  background-image: repeating-linear-gradient(transparent 0, transparent 27px, rgba(62,39,35,0.06) 28px);
+  background-size: 100% 28px;
+  background-position: 0 13px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.rich-editor:focus { border-color: var(--gold); }
+.rich-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-muted);
+  font-style: italic;
+  pointer-events: none;
+}
+.rich-editor strong, .rich-editor b { font-weight: 700; color: var(--ink-dark); }
+.rich-editor em, .rich-editor i { font-style: italic; }
+
+/* ===== Tag suggestions ===== */
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.tag-suggestions:empty { display: none; }
+.tag-chip {
+  background: var(--bg-parchment);
+  border: 1px solid var(--border);
+  color: var(--ink-medium);
+  font-family: var(--serif);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.tag-chip:hover {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+  color: var(--ink-dark);
+}
+
+/* Lesson view: render rich content */
+.lesson-view-body strong, .lesson-view-body b { font-weight: 700; }
+.lesson-view-body em, .lesson-view-body i { font-style: italic; }
+
 .form-row { display: flex; gap: 12px; }
 .flex-1 { flex: 1; }
 

@@ -19,6 +19,19 @@ const DEFAULT_PILLARS = [
   { name: 'Travel',           icon: '\u{2708}',  color: '#00838f', order: 9 },
 ];
 
+const PILLAR_TAG_SUGGESTIONS = {
+  'Relationships':   ['communication', 'conflict', 'trust', 'boundaries', 'intimacy', 'friendship', 'vulnerability'],
+  'Pickup':          ['confidence', 'approach', 'attraction', 'body-language', 'social-skills', 'frame', 'vibe', 'openers'],
+  'Finances':        ['budget', 'investing', 'savings', 'debt', 'mindset', 'income', 'taxes'],
+  'Spiritual':       ['meditation', 'mindfulness', 'gratitude', 'purpose', 'presence', 'faith'],
+  'Health':          ['fitness', 'nutrition', 'sleep', 'mental-health', 'habits', 'recovery', 'energy'],
+  'Career':          ['leadership', 'productivity', 'networking', 'skills', 'negotiation', 'work-life'],
+  'Personal Growth': ['discipline', 'self-awareness', 'learning', 'mindset', 'reflection', 'identity'],
+  'Creativity':      ['writing', 'art', 'music', 'ideas', 'flow', 'expression'],
+  'Family':          ['parenting', 'marriage', 'traditions', 'support', 'memory'],
+  'Travel':          ['solo', 'adventure', 'planning', 'cultural', 'photography', 'language'],
+};
+
 const PALETTE = [
   '#c2185b', '#7b1fa2', '#2e7d32', '#5d4037', '#00695c',
   '#1565c0', '#ef6c00', '#ad1457', '#6a1b9a', '#00838f',
@@ -250,7 +263,8 @@ function buildLessonCard(lesson, pillar) {
   const card = document.createElement('div');
   card.className = 'lesson-card';
   card.style.borderLeftColor = (pillar && pillar.color) || PALETTE[0];
-  const snippet = (lesson.description || '').slice(0, 180);
+  const plain = stripHtml(lesson.description || '');
+  const snippet = plain.slice(0, 180);
   const stars = renderStars(lesson.importance || 0);
   const dateStr = formatDate(lesson.date);
   const tagsHtml = (lesson.tags && lesson.tags.length)
@@ -261,7 +275,7 @@ function buildLessonCard(lesson, pillar) {
       <h3 class="lesson-card-title">${escapeHtml(lesson.title)}</h3>
       <span class="lesson-card-stars">${stars}</span>
     </div>
-    <p class="lesson-card-snippet">${escapeHtml(snippet)}${(lesson.description || '').length > 180 ? '…' : ''}</p>
+    <p class="lesson-card-snippet">${escapeHtml(snippet)}${plain.length > 180 ? '…' : ''}</p>
     <div class="lesson-card-foot">
       ${pillar ? `<span class="lesson-card-pillar" style="background:${hexToSoft(pillar.color)};color:${pillar.color}">${escapeHtml(pillar.name)}</span>` : ''}
       <span>${dateStr}</span>
@@ -443,6 +457,7 @@ function openManageModal() {
 function setupLessonModal() {
   const form = $('lesson-form');
   const starsEl = $('lesson-stars');
+  const editor = $('lesson-description');
 
   starsEl.addEventListener('click', (e) => {
     if (!e.target.classList.contains('star')) return;
@@ -451,11 +466,44 @@ function setupLessonModal() {
     refreshStars();
   });
 
+  // Rich text toolbar
+  document.querySelectorAll('.rich-toolbar button[data-cmd]').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
+      editor.focus();
+      document.execCommand(btn.dataset.cmd, false);
+      updateToolbarState();
+    });
+  });
+
+  editor.addEventListener('keydown', (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b') { e.preventDefault(); document.execCommand('bold'); updateToolbarState(); }
+    if (k === 'i') { e.preventDefault(); document.execCommand('italic'); updateToolbarState(); }
+  });
+
+  editor.addEventListener('keyup', updateToolbarState);
+  editor.addEventListener('mouseup', updateToolbarState);
+
+  // Tag suggestions
+  $('lesson-pillar').addEventListener('change', updateTagSuggestions);
+  $('lesson-tags').addEventListener('input', updateTagSuggestions);
+  $('tag-suggestions').addEventListener('click', (e) => {
+    const chip = e.target.closest('.tag-chip');
+    if (!chip) return;
+    const tagsInput = $('lesson-tags');
+    const cur = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean);
+    if (!cur.includes(chip.dataset.tag)) cur.push(chip.dataset.tag);
+    tagsInput.value = cur.join(', ');
+    updateTagSuggestions();
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('lesson-id').value;
     const title = $('lesson-title').value.trim();
-    const description = $('lesson-description').value.trim();
+    const description = sanitizeRichHtml(editor.innerHTML);
     const pillarId = $('lesson-pillar').value;
     const dateRaw = $('lesson-date').value;
     const tagsRaw = $('lesson-tags').value;
@@ -491,11 +539,32 @@ function setupLessonModal() {
   });
 }
 
+function updateToolbarState() {
+  document.querySelectorAll('.rich-toolbar button[data-cmd]').forEach(btn => {
+    let active = false;
+    try { active = document.queryCommandState(btn.dataset.cmd); } catch {}
+    btn.classList.toggle('active', active);
+  });
+}
+
+function updateTagSuggestions() {
+  const container = $('tag-suggestions');
+  const pillarId = $('lesson-pillar').value;
+  const p = pillars.find(x => x.id === pillarId);
+  if (!p) { container.innerHTML = ''; return; }
+  const suggestions = PILLAR_TAG_SUGGESTIONS[p.name] || [];
+  const current = $('lesson-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+  container.innerHTML = suggestions
+    .filter(s => !current.includes(s))
+    .map(s => `<button type="button" class="tag-chip" data-tag="${escapeHtml(s)}">+ ${escapeHtml(s)}</button>`)
+    .join('');
+}
+
 function openLessonModal(lesson) {
   $('lesson-modal-title').textContent = lesson ? 'Edit Lesson' : 'New Lesson';
   $('lesson-id').value = lesson ? lesson.id : '';
   $('lesson-title').value = lesson ? lesson.title : '';
-  $('lesson-description').value = lesson ? (lesson.description || '') : '';
+  $('lesson-description').innerHTML = lesson ? (lesson.description || '') : '';
 
   // Pillar dropdown
   const sel = $('lesson-pillar');
@@ -527,6 +596,7 @@ function openLessonModal(lesson) {
 
   $('lesson-delete-btn').classList.toggle('hidden', !lesson);
 
+  updateTagSuggestions();
   openModal('lesson-modal');
   setTimeout(() => $('lesson-title').focus(), 50);
 }
@@ -575,7 +645,7 @@ function openLessonView(lesson) {
   $('lv-stars').innerHTML = renderStars(lesson.importance || 0);
   const tagsEl = $('lv-tags');
   tagsEl.innerHTML = (lesson.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('');
-  $('lv-description').textContent = lesson.description || '';
+  $('lv-description').innerHTML = sanitizeRichHtml(lesson.description || '');
   openModal('lesson-view-modal');
 }
 
@@ -694,6 +764,30 @@ function escapeHtml(s) {
   const div = document.createElement('div');
   div.textContent = s == null ? '' : String(s);
   return div.innerHTML;
+}
+
+// Allow only bold/italic + line breaks. Strip everything else, including
+// attributes (no on*, no style, no href). Safe for innerHTML rendering.
+const ALLOWED_RICH = new Set(['B', 'I', 'EM', 'STRONG', 'BR', 'DIV', 'P']);
+function sanitizeRichHtml(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  tmp.querySelectorAll('script, style, iframe, object, embed').forEach(el => el.remove());
+  tmp.querySelectorAll('*').forEach(el => {
+    if (!ALLOWED_RICH.has(el.tagName)) {
+      el.replaceWith(...el.childNodes);
+      return;
+    }
+    [...el.attributes].forEach(a => el.removeAttribute(a.name));
+  });
+  const out = tmp.innerHTML.trim();
+  return (out === '<br>' || out === '<br/>') ? '' : out;
+}
+
+function stripHtml(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  return (tmp.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
 function hexToSoft(hex) {

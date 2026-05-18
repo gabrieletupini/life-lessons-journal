@@ -144,8 +144,15 @@
           <span class="star" data-val="1">★</span><span class="star" data-val="2">★</span><span class="star" data-val="3">★</span><span class="star" data-val="4">★</span><span class="star" data-val="5">★</span>
         </div>
       </label>
-      <label>Description<textarea id="lesson-description" rows="10" required></textarea></label>
+      <label>Description
+        <div class="rich-toolbar">
+          <button type="button" data-cmd="bold" title="Bold (⌘B)"><strong>B</strong></button>
+          <button type="button" data-cmd="italic" title="Italic (⌘I)"><em>I</em></button>
+        </div>
+        <div id="lesson-description" class="rich-editor" contenteditable="true" data-placeholder="Write the lesson…"></div>
+      </label>
       <label>Tags <span class="hint">(comma-separated)</span><input type="text" id="lesson-tags" placeholder="wisdom, growth, …"></label>
+      <div id="tag-suggestions" class="tag-suggestions"></div>
       <input type="hidden" id="lesson-id">
       <div class="form-actions">
         <button type="button" id="lesson-delete-btn" class="btn-danger hidden">Delete</button>
