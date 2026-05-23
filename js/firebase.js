@@ -14,12 +14,12 @@ let syncStatusCallback = null;
 
 export function initFirebase() {
   const app = initializeApp({
-    apiKey: "AIzaSyCaOEjgmmCbtl00fYif89iVCO5CewiSoVQ",
-    authDomain: "routiner-db.firebaseapp.com",
-    projectId: "routiner-db",
-    storageBucket: "routiner-db.firebasestorage.app",
-    messagingSenderId: "815158931879",
-    appId: "1:815158931879:web:8c5cc7ccfed90210068682",
+    apiKey: "AIzaSyCQo3IoYfNYx4FpU0mqURa-hCZn8CKWuQo",
+    authDomain: "life-lessons-db.firebaseapp.com",
+    projectId: "life-lessons-db",
+    storageBucket: "life-lessons-db.firebasestorage.app",
+    messagingSenderId: "103457012751",
+    appId: "1:103457012751:web:00eef14c1066febe34f77a",
   });
   db = getFirestore(app);
   auth = getAuth(app);
