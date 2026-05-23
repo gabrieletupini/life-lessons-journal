@@ -342,6 +342,10 @@ function buildLessonCard(lesson, pillar) {
   const tagsHtml = (lesson.tags && lesson.tags.length)
     ? `<span class="lesson-card-tags">${lesson.tags.map(t => `<span class="lesson-card-tag">${escapeHtml(t)}</span>`).join('')}</span>`
     : '';
+  const linkedStudies = (lesson.studyIds || []).map(studyById).filter(Boolean);
+  const studiesHtml = linkedStudies.length
+    ? `<span class="lesson-card-studies" title="${linkedStudies.map(s => s.title).join(' · ')}">📎 ${linkedStudies.length === 1 ? linkedStudies[0].title : linkedStudies.length + ' studies'}</span>`
+    : '';
   card.innerHTML = `
     <div class="lesson-card-head">
       <h3 class="lesson-card-title">${escapeHtml(lesson.title)}</h3>
@@ -352,6 +356,7 @@ function buildLessonCard(lesson, pillar) {
       ${pillar ? `<span class="lesson-card-pillar" style="background:${hexToSoft(pillar.color)};color:${pillar.color}">${escapeHtml(pillar.name)}</span>` : ''}
       <span>${dateStr}</span>
       ${tagsHtml}
+      ${studiesHtml}
     </div>
   `;
   card.addEventListener('click', () => openLessonView(lesson));

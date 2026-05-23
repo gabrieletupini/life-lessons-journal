@@ -524,6 +524,21 @@ body {
 }
 .lesson-card-tag::before { content: '#'; }
 
+.lesson-card-studies {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--gold-dark);
+  background: var(--gold-soft);
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ===== Empty state ===== */
 .empty-state {
   text-align: center;
