@@ -4,6 +4,7 @@ import {
   subscribeToLessons, createLesson, updateLesson, deleteLesson,
   seedDefaultPillars, exportAll, importAll,
 } from './firebase.js';
+import { STUDIES } from './studies.js';
 
 // ===== Defaults =====
 const DEFAULT_PILLARS = [
@@ -228,6 +229,75 @@ function openPillar(id) {
   renderPillarDetail();
 }
 
+function studiesForPillar(pillarName) {
+  return STUDIES.filter(s => s.pillarName === pillarName);
+}
+
+function studyById(id) {
+  return STUDIES.find(s => s.id === id);
+}
+
+function renderLinkedStudies(lesson) {
+  const el = document.getElementById('lv-studies');
+  if (!el) return;
+  const ids = (lesson.studyIds || []).filter(Boolean);
+  const items = ids.map(studyById).filter(Boolean);
+  if (items.length === 0) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="lv-studies-title">Linked studies</div>
+    ${items.map(s => {
+      const fname = s.file.split('/').pop();
+      return `
+        <div class="study-card">
+          <div class="study-card-info">
+            <div class="study-card-title">${escapeHtml(s.title)}</div>
+            <div class="study-card-excerpt">${escapeHtml(s.excerpt)}</div>
+            <div class="study-card-meta">${s.readingMinutes} min</div>
+          </div>
+          <div class="study-card-actions">
+            <a class="study-btn study-btn-view" href="${s.file}" target="_blank" rel="noopener">View →</a>
+            <a class="study-btn study-btn-download" href="${s.file}" download="${fname}">⬇ Download</a>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function renderPillarStudies(pillar) {
+  const container = document.getElementById('pillar-studies');
+  if (!container) return;
+  const items = studiesForPillar(pillar.name);
+  if (items.length === 0) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  container.classList.remove('hidden');
+  const cards = items.map(s => {
+    const fname = s.file.split('/').pop();
+    return `
+      <div class="study-card">
+        <div class="study-card-info">
+          <div class="study-card-title">${escapeHtml(s.title)}</div>
+          <div class="study-card-excerpt">${escapeHtml(s.excerpt)}</div>
+          <div class="study-card-meta">${s.readingMinutes} min · ${escapeHtml(s.publishedAt || '')}</div>
+        </div>
+        <div class="study-card-actions">
+          <a class="study-btn study-btn-view" href="${s.file}" target="_blank" rel="noopener">View →</a>
+          <a class="study-btn study-btn-download" href="${s.file}" download="${fname}">⬇ Download</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+  container.innerHTML = `<div class="pillar-studies-title">Studies for this pillar</div>${cards}`;
+}
+
 function renderPillarDetail() {
   const p = pillars.find(x => x.id === currentPillarId);
   if (!p) {
@@ -237,6 +307,8 @@ function renderPillarDetail() {
   pillarDetailName.textContent = p.name;
   pillarDetailName.style.color = p.color || 'var(--ink-dark)';
   pillarDetailIcon.textContent = p.icon || '';
+
+  renderPillarStudies(p);
 
   let items = lessons.filter(l => l.pillarId === currentPillarId);
 
@@ -486,8 +558,11 @@ function setupLessonModal() {
   editor.addEventListener('keyup', updateToolbarState);
   editor.addEventListener('mouseup', updateToolbarState);
 
-  // Tag suggestions
-  $('lesson-pillar').addEventListener('change', updateTagSuggestions);
+  // Tag suggestions + studies picker re-render on pillar change
+  $('lesson-pillar').addEventListener('change', () => {
+    updateTagSuggestions();
+    refreshStudiesPicker();
+  });
   $('lesson-tags').addEventListener('input', updateTagSuggestions);
   $('tag-suggestions').addEventListener('click', (e) => {
     const chip = e.target.closest('.tag-chip');
@@ -510,6 +585,8 @@ function setupLessonModal() {
 
     if (!title || !pillarId) return;
 
+    const studyIds = [...document.querySelectorAll('#lesson-studies-picker input:checked')].map(cb => cb.value);
+
     const data = {
       title,
       description,
@@ -517,6 +594,7 @@ function setupLessonModal() {
       date: dateRaw ? new Date(dateRaw) : new Date(),
       importance: editingStars,
       tags: tagsRaw.split(',').map(t => t.trim()).filter(Boolean),
+      studyIds,
     };
     if (id) {
       await updateLesson(id, data);
@@ -596,9 +674,46 @@ function openLessonModal(lesson) {
 
   $('lesson-delete-btn').classList.toggle('hidden', !lesson);
 
+  // Studies picker pre-selection from existing lesson, then render based on current pillar
+  editingStudyIds = lesson && lesson.studyIds ? [...lesson.studyIds] : [];
   updateTagSuggestions();
+  refreshStudiesPicker();
   openModal('lesson-modal');
   setTimeout(() => $('lesson-title').focus(), 50);
+}
+
+let editingStudyIds = [];
+
+function refreshStudiesPicker() {
+  const labelEl = document.getElementById('lesson-studies-label');
+  const pickerEl = document.getElementById('lesson-studies-picker');
+  if (!labelEl || !pickerEl) return;
+
+  const pillarId = $('lesson-pillar').value;
+  const pillar = pillars.find(x => x.id === pillarId);
+  const items = pillar ? studiesForPillar(pillar.name) : [];
+
+  if (items.length === 0) {
+    labelEl.classList.add('hidden');
+    pickerEl.innerHTML = '';
+    return;
+  }
+  labelEl.classList.remove('hidden');
+  pickerEl.innerHTML = items.map(s => {
+    const checked = editingStudyIds.includes(s.id);
+    return `
+      <label class="studies-picker-row${checked ? ' checked' : ''}">
+        <input type="checkbox" value="${s.id}"${checked ? ' checked' : ''}>
+        <span>${escapeHtml(s.title)}</span>
+      </label>
+    `;
+  }).join('');
+  pickerEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('.studies-picker-row').classList.toggle('checked', cb.checked);
+      editingStudyIds = [...pickerEl.querySelectorAll('input:checked')].map(c => c.value);
+    });
+  });
 }
 
 function refreshStars() {
@@ -646,6 +761,7 @@ function openLessonView(lesson) {
   const tagsEl = $('lv-tags');
   tagsEl.innerHTML = (lesson.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('');
   $('lv-description').innerHTML = sanitizeRichHtml(lesson.description || '');
+  renderLinkedStudies(lesson);
   openModal('lesson-view-modal');
 }
 

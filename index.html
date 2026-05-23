@@ -70,6 +70,8 @@
       </div>
       <button id="add-lesson-btn" class="btn-primary">+ New Lesson</button>
     </div>
+    <div id="pillar-studies" class="pillar-studies hidden"></div>
+
     <div class="lessons-controls">
       <input id="lessons-search" type="text" placeholder="Search in this pillar…">
       <select id="lessons-sort">
@@ -153,6 +155,9 @@
       </label>
       <label>Tags <span class="hint">(comma-separated)</span><input type="text" id="lesson-tags" placeholder="wisdom, growth, …"></label>
       <div id="tag-suggestions" class="tag-suggestions"></div>
+      <label id="lesson-studies-label" class="hidden">Linked studies <span class="hint">(toggle to link)</span>
+        <div id="lesson-studies-picker" class="studies-picker"></div>
+      </label>
       <input type="hidden" id="lesson-id">
       <div class="form-actions">
         <button type="button" id="lesson-delete-btn" class="btn-danger hidden">Delete</button>
@@ -176,6 +181,7 @@
       <div id="lv-tags" class="lesson-view-tags"></div>
       <div class="divider-line"></div>
       <div id="lv-description" class="lesson-view-body"></div>
+      <div id="lv-studies" class="lv-studies hidden"></div>
     </div>
     <div class="form-actions">
       <button id="lv-copy-btn">Copy</button>
