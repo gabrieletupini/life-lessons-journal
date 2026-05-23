@@ -20,4 +20,14 @@ export const STUDIES = [
     file: 'studies/pickup/patience-acceptance-push.html',
     publishedAt: '2026-05-23',
   },
+  {
+    id: 'pickup-soft-hard-limit',
+    pillarName: 'Pickup',
+    title: 'Soft limit, hard limit',
+    excerpt:
+      'Every date has two clocks — the stated soft limit and the real hard one. How to read both, design the evening around the right one, and never confuse them.',
+    readingMinutes: 8,
+    file: 'studies/pickup/soft-hard-limit.html',
+    publishedAt: '2026-05-23',
+  },
 ];

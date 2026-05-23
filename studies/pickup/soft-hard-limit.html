@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Soft limit, hard limit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #14110f;
+    --paper: #f4ede1;
+    --paper-2: #ebe0cd;
+    --accent: #b8412e;
+    --accent-2: #2a5f7a;
+    --accent-3: #6b8e4e;
+    --muted: #6b6155;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Fraunces", Georgia, serif;
+    line-height: 1.6;
+    font-size: 19px;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(rgba(20,17,15,0.04) 1px, transparent 1px);
+    background-size: 4px 4px;
+    mix-blend-mode: multiply;
+    z-index: 1;
+  }
+  .wrap { position: relative; z-index: 2; max-width: 680px; margin: 0 auto; padding: 10vh 6vw; }
+
+  .kicker {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+  }
+  h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 300;
+    font-size: clamp(40px, 7vw, 76px);
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+    margin: 0 0 2.5rem;
+  }
+  h1 em { font-style: italic; color: var(--accent); font-weight: 400; }
+
+  .lede {
+    font-size: 22px;
+    line-height: 1.5;
+    color: #2a2520;
+    margin: 0 0 4rem;
+    padding-bottom: 3rem;
+    border-bottom: 1px solid rgba(20,17,15,0.15);
+  }
+
+  h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(26px, 3.5vw, 36px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    margin: 3.5rem 0 1.2rem;
+    max-width: 26ch;
+  }
+  .num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.6rem;
+  }
+  p { margin: 0 0 1.2rem; }
+  p strong { font-weight: 600; }
+  p em { font-style: italic; }
+
+  /* CHART */
+  .chart-wrap { margin: 2.5rem 0 3rem; }
+  .chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background:
+      repeating-linear-gradient(to bottom,
+        transparent 0,
+        transparent 23px,
+        rgba(155, 176, 196, 0.4) 23px,
+        rgba(155, 176, 196, 0.4) 24px),
+      var(--paper-2);
+    border: 1px solid rgba(20,17,15,0.15);
+    position: relative;
+    overflow: hidden;
+  }
+  .chart svg { width: 100%; height: 100%; display: block; }
+  .chart .axis-line { stroke: var(--ink); stroke-width: 1.5; }
+  .chart .threshold {
+    stroke: var(--accent-3);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 4;
+    opacity: 0.85;
+  }
+  .chart .limit-line {
+    stroke-width: 1.8;
+    stroke-dasharray: 3 4;
+  }
+  .chart .limit-soft { stroke: #c97a1f; }
+  .chart .limit-hard { stroke: var(--accent); }
+  .chart .buyin {
+    fill: none;
+    stroke: var(--accent-2);
+    stroke-width: 2.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .chart .buyin-zone {
+    fill: var(--accent-2);
+    opacity: 0.08;
+  }
+  .chart .buyin-bad {
+    fill: none;
+    stroke: var(--accent-2);
+    stroke-width: 2.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    opacity: 0.55;
+  }
+  .chart .x-mark {
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  .chart .arrow-shift {
+    stroke: #c97a1f;
+    stroke-width: 1.5;
+    fill: none;
+    marker-end: url(#arrowhead);
+  }
+  .chart .ghost-limit {
+    stroke: #c97a1f;
+    stroke-width: 1.2;
+    stroke-dasharray: 2 3;
+    opacity: 0.4;
+  }
+  .chart-label {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 16px;
+  }
+  .chart-mono {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    fill: var(--muted);
+  }
+  .legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.8rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .legend span::before {
+    content: "";
+    width: 18px; height: 3px;
+    border-radius: 2px;
+  }
+  .legend .l-buyin::before { background: var(--accent-2); }
+  .legend .l-closeable::before { background: var(--accent-3); }
+  .legend .l-soft::before { background: #c97a1f; }
+  .legend .l-hard::before { background: var(--accent); }
+  .chart-caption {
+    margin-top: 1rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* Two definition cards */
+  .two-nature {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin: 2rem 0 1.5rem;
+  }
+  @media (max-width: 640px) { .two-nature { grid-template-columns: 1fr; } }
+  .nature-card {
+    padding: 1.2rem 1.4rem;
+    border: 1px solid rgba(20,17,15,0.18);
+    background: rgba(255,255,255,0.25);
+  }
+  .nature-card .tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+  .nature-card.soft .tag { color: #c97a1f; }
+  .nature-card.hard .tag { color: var(--accent); }
+  .nature-card h4 {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-style: italic;
+    font-size: 20px;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .nature-card p {
+    font-size: 15.5px;
+    line-height: 1.5;
+    margin: 0;
+    color: #2a2520;
+  }
+
+  /* Numbered lessons */
+  .wave-lessons {
+    margin: 2.5rem 0 1rem;
+    display: grid;
+    gap: 1.2rem;
+  }
+  .lesson {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 1.2rem;
+    padding: 1.4rem 0;
+    border-top: 1px solid rgba(20,17,15,0.18);
+  }
+  .lesson:last-child { border-bottom: 1px solid rgba(20,17,15,0.18); }
+  @media (max-width: 540px) {
+    .lesson { grid-template-columns: 1fr; gap: 0.4rem; }
+  }
+  .lesson .lesson-num {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 44px;
+    line-height: 1;
+    color: var(--accent);
+    letter-spacing: -0.03em;
+  }
+  .lesson h4 {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0 0 0.6rem;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .lesson p {
+    font-size: 17px;
+    line-height: 1.55;
+    margin: 0 0 0.8rem;
+    color: #2a2520;
+  }
+  .lesson p:last-child { margin-bottom: 0; }
+
+  .pull {
+    margin: 4rem 0;
+    padding: 2.5rem;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 2px;
+  }
+  .pull blockquote {
+    margin: 0;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(22px, 3vw, 28px);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .pull blockquote::before {
+    content: "“";
+    color: var(--accent);
+    font-size: 1.4em;
+    line-height: 0;
+    vertical-align: -0.3em;
+    margin-right: 0.05em;
+  }
+
+  .three {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin: 3rem 0;
+  }
+  @media (max-width: 640px) { .three { grid-template-columns: 1fr; } }
+  .word { border-top: 2px solid var(--ink); padding-top: 1rem; }
+  .word .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.4rem;
+  }
+  .word h3 {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0 0 0.6rem;
+    letter-spacing: -0.01em;
+  }
+  .word p {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0;
+    color: #2a2520;
+  }
+
+  .end {
+    margin-top: 5rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(20,17,15,0.15);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Short essay · on timing</div>
+  <h1>Every date has <em>two clocks.</em><br>Learn to read both.</h1>
+
+  <p class="lede">
+    She mentioned she has to be home around <strong>9 pm</strong> — work the next morning. That's one clock. Then there's the other one, the one she didn't say out loud: <strong>7 am</strong>, when she actually has to be out the door. Same evening, two completely different deadlines. Almost everything that happens between now and the end of the night depends on which of those two you're reading.
+  </p>
+
+  <span class="num">I.</span>
+  <h2>Two limits, never one.</h2>
+  <p>
+    Nine isn't when she <em>has to</em> be home — it's when she'd <em>prefer</em> to be home. If the evening's going well, nine becomes ten, midnight, one in the morning. <strong>Soft limits respond to context.</strong> Seven is different. Seven is the meeting, the train, the alarm she can't move. No amount of charm shifts it by a single minute. <strong>Hard limits don't respond to anything.</strong>
+  </p>
+  <p>
+    Most men only see the seven. They feel they have all night, pace the evening like they have nine hours to fill, and then around 8:45 something happens they can't explain: she gets quieter, checks her phone, mentions the morning. The other clock just started ringing, and they didn't know it existed.
+  </p>
+
+  <div class="chart-wrap">
+    <div class="chart">
+      <svg viewBox="0 0 800 380" preserveAspectRatio="none" aria-label="Buy-in curve over time with soft and hard limits">
+        <line class="axis-line" x1="40" y1="30" x2="40" y2="350" />
+        <line class="axis-line" x1="40" y1="350" x2="780" y2="350" />
+        <text class="chart-mono" x="48" y="24">her buy-in</text>
+        <text class="chart-mono" x="775" y="370" text-anchor="end">time →</text>
+        <text class="chart-mono" x="48" y="345">low</text>
+        <text class="chart-mono" x="48" y="100">high</text>
+        <line class="threshold" x1="40" y1="110" x2="780" y2="110" />
+        <text class="chart-mono" x="48" y="104" fill="#6b8e4e">closeable</text>
+        <line class="limit-line limit-soft" x1="560" y1="30" x2="560" y2="350" />
+        <text class="chart-mono" x="565" y="44" fill="#c97a1f">soft limit</text>
+        <text class="chart-mono" x="565" y="58" fill="#c97a1f">~ 9 pm</text>
+        <line class="limit-line limit-hard" x1="730" y1="30" x2="730" y2="350" />
+        <text class="chart-mono" x="725" y="44" text-anchor="end" fill="#b8412e">hard limit</text>
+        <text class="chart-mono" x="725" y="58" text-anchor="end" fill="#b8412e">~ 7 am</text>
+        <path class="buyin-zone"
+              d="M 40 320 Q 180 290 280 240 T 460 160 T 560 110 L 560 350 L 40 350 Z" />
+        <path class="buyin"
+              d="M 40 320 Q 180 290 280 240 T 460 160 T 560 110" />
+        <path class="buyin"
+              d="M 560 110 L 730 108" stroke-dasharray="4 4" opacity="0.5" />
+        <circle cx="560" cy="110" r="4" fill="#2a5f7a" />
+        <text class="chart-label" x="555" y="98" text-anchor="end" fill="#2a5f7a">crossing</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span class="l-buyin">her buy-in</span>
+      <span class="l-closeable">closeable threshold</span>
+      <span class="l-soft">soft limit</span>
+      <span class="l-hard">hard limit</span>
+    </div>
+    <p class="chart-caption">
+      The good version. Curve climbs through the threshold around eight. By nine she's already above the line, and "I should go" turns into "one more drink." Seven is still there. It hasn't moved. But it isn't what the evening is about.
+    </p>
+  </div>
+
+  <div class="two-nature">
+    <div class="nature-card soft">
+      <div class="tag">First clock · ~ 9 pm</div>
+      <h4>The soft limit</h4>
+      <p>The nine she mentioned. A deadline she set herself — work the next morning, an early alarm, a roommate. She can push past it, and often will, but it costs her something. <strong>Soft limits move when buy-in is high enough to make moving them worth it.</strong></p>
+    </div>
+    <div class="nature-card hard">
+      <div class="tag">Second clock · ~ 7 am</div>
+      <h4>The hard limit</h4>
+      <p>The seven she didn't say. The meeting at eight, the train, the flight. No amount of charm shifts it by a single minute. <strong>Plan as if it isn't a parameter at all.</strong></p>
+    </div>
+  </div>
+
+  <span class="num">II.</span>
+  <h2>Three things the two clocks teach you.</h2>
+
+  <div class="wave-lessons">
+
+    <div class="lesson">
+      <div class="lesson-num">01</div>
+      <div>
+        <h4>Screen before the date, not during it.</h4>
+        <p>
+          The ideal move isn't to discover her schedule on the date — it's to know it before you set the date. In texts, in the planning back-and-forth, ask casually how her week looks, what time her mornings start. Pick a day and a start time where the soft limit gives you real runway, not a three-hour window with a 9 pm hard wall.
+        </p>
+        <p>
+          This matters because <strong>not reaching a closeable level on the first date is dangerous</strong> — not because of the night itself, but because of what it does to curiosity. A first date that ends with no real spark, no moment of intimacy, doesn't leave her thinking about you. It leaves her thinking <em>nothing</em>, which is worse. <strong>If the night doesn't have enough time built into it to do this properly, reschedule.</strong> A delayed date is recoverable. A killed lead usually isn't.
+        </p>
+      </div>
+    </div>
+
+    <div class="lesson">
+      <div class="lesson-num">02</div>
+      <div>
+        <h4>Front-load the moments that matter.</h4>
+        <p>
+          You sat down at six. She said nine. That's three hours. If the best part of your repertoire — the story, the walk to the second place, the touch on the arm that lands — is at hour four, you've designed an evening that mathematically can't work. The high-temperature moment needs to happen before her brain starts calculating whether to extend the curfew.
+        </p>
+        <p>
+          <strong>The curve has to be visibly climbing at nine, not still warming up.</strong> If she checks the time and the evening feels flat, no soft limit gets moved. If she checks the time and the evening feels like something she'd be sorry to leave — the nine quietly becomes a ten.
+        </p>
+      </div>
+    </div>
+
+    <div class="lesson">
+      <div class="lesson-num">03</div>
+      <div>
+        <h4>If buy-in is low near nine, don't escalate hard.</h4>
+        <p>
+          It's 8:55, the curve is in the middle, the temperature isn't really there. The instinct is to push — one last attempt, a sudden physical escalation, a "let's go somewhere else." <strong>That's the worst move available.</strong> Aggressive escalation at low buy-in doesn't raise the curve — it makes her uncomfortable, and an uncomfortable woman doesn't extend a soft limit, she shortens it. You go from "we'll see each other again" to "I'd rather not see him again," and you never know which one she was leaning toward before you pushed.
+        </p>
+        <p>
+          When you're not close enough, <strong>stay put.</strong> Stay warm, stay present, accept that tonight isn't the night, and let her leave on her own clock with a good feeling about you. The door stays open. That's the actual win in this scenario, even though it doesn't feel like one.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <span class="num">III.</span>
+  <h2>The curve has a shape, not just a height.</h2>
+  <p>
+    Reaching the closeable line isn't enough on its own. <strong>How you get there matters as much as whether you get there.</strong> The curve has to climb <em>progressively</em> — small steps, each one slightly more than the last, with breathing room between them. Conversation, then sustained eye contact. Eye contact, then a hand on the arm. A hand on the arm, then a closer seat. Each step earns the next.
+  </p>
+  <p>
+    This is why you don't exaggerate escalation. You do the right amount at the right time and then <em>keep it chill</em>. The pressure isn't on her to respond to a big move — it's on the moment to develop on its own. The goal isn't a peak at 8:45. It's a steady, unhurried climb that arrives, around the soft limit, at the point where leaning in for a kiss is the natural next thing. <strong>That's what closing by the soft limit means: a kiss that intensifies intimacy, not a finale that breaks the rhythm.</strong>
+  </p>
+  <p>
+    There are two ways to ruin the shape — and they look opposite from the outside.
+  </p>
+
+  <div class="chart-wrap">
+    <div class="chart">
+      <svg viewBox="0 0 800 380" preserveAspectRatio="none" aria-label="Failure mode: curve peaks early then declines, shifting the soft limit left">
+        <defs>
+          <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c97a1f" />
+          </marker>
+        </defs>
+        <line class="axis-line" x1="40" y1="30" x2="40" y2="350" />
+        <line class="axis-line" x1="40" y1="350" x2="780" y2="350" />
+        <text class="chart-mono" x="48" y="24">her buy-in</text>
+        <text class="chart-mono" x="775" y="370" text-anchor="end">time →</text>
+        <line class="threshold" x1="40" y1="110" x2="780" y2="110" />
+        <text class="chart-mono" x="775" y="104" text-anchor="end" fill="#6b8e4e">closeable</text>
+        <line class="ghost-limit" x1="600" y1="30" x2="600" y2="350" />
+        <text class="chart-mono" x="605" y="44" fill="#c97a1f" opacity="0.5">9 pm</text>
+        <text class="chart-mono" x="605" y="58" fill="#c97a1f" opacity="0.5">stated</text>
+        <line class="limit-line limit-soft" x1="450" y1="30" x2="450" y2="350" />
+        <text class="chart-mono" x="445" y="44" text-anchor="end" fill="#c97a1f">7:45 pm</text>
+        <text class="chart-mono" x="445" y="58" text-anchor="end" fill="#c97a1f">she leaves</text>
+        <path class="arrow-shift" d="M 590 26 Q 520 18 462 26" />
+        <line class="limit-line limit-hard" x1="730" y1="30" x2="730" y2="350" />
+        <text class="chart-mono" x="725" y="44" text-anchor="end" fill="#b8412e">7 am</text>
+        <text class="chart-mono" x="725" y="58" text-anchor="end" fill="#b8412e">hard</text>
+        <path class="buyin-bad"
+              d="M 40 320 Q 90 280 140 180 T 250 110 L 320 105 Q 380 110 430 180 T 540 310" />
+        <line class="x-mark" x1="495" y1="265" x2="535" y2="305" />
+        <line class="x-mark" x1="535" y1="265" x2="495" y2="305" />
+      </svg>
+    </div>
+    <div class="legend">
+      <span class="l-buyin">buy-in (rising then falling)</span>
+      <span class="l-soft">soft limit, revised left</span>
+      <span class="l-closeable">closeable threshold</span>
+    </div>
+    <p class="chart-caption">
+      The failure mode. The curve climbed fast, peaked, then fell. By 7:45 she's saying she should head out — over an hour before her nine. She didn't change her mind about the morning. She changed her mind about the night.
+    </p>
+  </div>
+
+  <div class="wave-lessons">
+
+    <div class="lesson">
+      <div class="lesson-num">01</div>
+      <div>
+        <h4>Don't climb too steep, too fast.</h4>
+        <p>
+          A nearly-vertical rise reads as <em>agenda</em>, not as connection. Escalation that arrives all at once tells her brain you're working <em>toward</em> something rather than being <em>with</em> her. The word she'd use is <strong>pushy</strong>; the actual perception is more specific — she senses a goal in the room that wasn't hers.
+        </p>
+        <p>
+          The fix isn't to escalate less. It's to <strong>distribute escalation across the time you have.</strong> Small steps, evenly spaced, each one earning the next. <strong>Time is what lets the curve climb without looking like a ramp.</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="lesson">
+      <div class="lesson-num">02</div>
+      <div>
+        <h4>The curve can't fall far before she leaves.</h4>
+        <p>
+          The nine isn't a fixed point — it's a number she's continuously recalculating. If buy-in peaks at 7:30 and then drops noticeably, <strong>her nine quietly becomes a 7:45.</strong> She doesn't announce this. She just starts wrapping up sooner than she would have.
+        </p>
+        <p>
+          Once you're at a good altitude, the work shifts from <em>climbing</em> to <em>not slipping</em>. Don't introduce a new high-risk topic at a peak. Don't try to one-up the moment that just worked. Hold the altitude — the climb resumes on its own when the conditions are right.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="pull">
+    <blockquote>
+      The right curve isn't the steepest. It's the one that climbs without alarming her, and doesn't fall once it's high.
+    </blockquote>
+  </div>
+
+  <span class="num">IV.</span>
+  <h2>The hard limit isn't a constraint. It's the room.</h2>
+  <p>
+    Soft limits respond to context. Hard limits don't. The seven in the morning isn't an obstacle you charm your way through — it's a fact about the universe of the evening, the same way the walls of the room are facts. You don't talk the wall into moving. You move within it.
+  </p>
+  <p>
+    The mistake here is rarer but expensive. The evening went well, she stayed past nine, you're at 4 am, real connection in the room. There's a temptation to think <em>this</em> moment is bigger than her seven. So you push for an extra hour, she hesitates, she leaves anyway — and now she's tired, slightly annoyed, and her last impression of you is someone who couldn't take a real no.
+  </p>
+  <p>
+    The right move when the seven gets close is the opposite: <strong>respect it visibly, even cheerfully.</strong> "You should go, you've got that thing at eight." She remembers that. It's a kind of competence she may not have a word for, but she registers it — and it's exactly what makes the soft limit on date two looser than it would have been.
+  </p>
+
+  <div class="pull">
+    <blockquote>
+      A soft limit asks to be earned. A hard limit asks to be honored. Confusing the two is how good evenings end badly.
+    </blockquote>
+  </div>
+
+  <p class="end">— end</p>
+
+</div>
+</body>
+</html>
