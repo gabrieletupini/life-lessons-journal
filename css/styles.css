@@ -1127,6 +1127,46 @@ body {
   max-height: 50vh;
   overflow-y: auto;
 }
+
+/* HTML drop zone inside the addendum modal */
+.html-drop-zone {
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  background: var(--bg-parchment);
+  margin-bottom: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.html-drop-zone:hover,
+.html-drop-zone.drag-over {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+.html-drop-prompt {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  color: var(--ink-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.html-drop-prompt strong {
+  color: var(--gold-dark);
+  font-weight: 600;
+}
+.html-drop-icon {
+  font-family: var(--display);
+  font-size: 18px;
+  color: var(--gold);
+  line-height: 1;
+}
 .study-nuance-empty {
   font-family: var(--display);
   font-style: italic;

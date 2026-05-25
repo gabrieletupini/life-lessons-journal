@@ -1011,6 +1011,27 @@ function setupStudyNuanceModal() {
     if (k === 'i') { e.preventDefault(); document.execCommand('italic'); }
   });
 
+  // Drag-and-drop / click-to-browse HTML import
+  const drop = $('sn-html-drop');
+  const fileInput = $('sn-html-file');
+  drop.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    drop.classList.add('drag-over');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('drag-over');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) importHtmlIntoEditor(file);
+  });
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) importHtmlIntoEditor(file);
+    fileInput.value = '';
+  });
+
   $('sn-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('sn-id').value;
@@ -1058,6 +1079,41 @@ function openStudyNuanceModal(studyId, nuanceId) {
   expandedStudies.add(studyId);
   openModal('study-nuance-modal');
   setTimeout(() => $('sn-title').focus(), 50);
+}
+
+// Reads a user-dropped .html file and injects its <body> (sanitized) into the
+// addendum body editor. Auto-fills the title field from <title> or the first
+// heading when empty. The user can edit either field afterwards.
+async function importHtmlIntoEditor(file) {
+  if (!/\.html?$/i.test(file.name) && file.type !== 'text/html') {
+    showToast('Drop an .html file', 'error');
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('HTML file too large (max 2 MB)', 'error');
+    return;
+  }
+  try {
+    const text = await file.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+    const bodyEl = doc.body || doc.documentElement;
+    // Strip <style>/<script>/<link>/<meta> tags before sanitizing for clarity
+    bodyEl.querySelectorAll('script, style, link, meta, noscript').forEach(el => el.remove());
+    const html = sanitizeAddendumHtml(bodyEl.innerHTML);
+    $('sn-body').innerHTML = html;
+
+    // Auto-fill the title from <title> or first <h1>/<h2> when empty
+    const titleEl = $('sn-title');
+    if (!titleEl.value.trim()) {
+      const t = (doc.title || doc.querySelector('h1, h2, h3')?.textContent || '').trim();
+      if (t) titleEl.value = t.slice(0, 120);
+    }
+    showToast(`Imported ${file.name}`);
+  } catch (err) {
+    console.error(err);
+    showToast('Could not read that file: ' + (err.message || err), 'error');
+  }
 }
 
 // Permissive sanitizer for addendum bodies. Keeps headings, lists, paragraphs,
