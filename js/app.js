@@ -400,9 +400,22 @@ function buildLessonCard(lesson, pillar) {
   const studiesHtml = linkedStudies.length
     ? `<span class="lesson-card-studies" title="${linkedStudies.map(s => s.title).join(' · ')}">📎 ${linkedStudies.length === 1 ? linkedStudies[0].title : linkedStudies.length + ' studies'}</span>`
     : '';
-  const nuancesCount = (lesson.nuances || []).filter(n => n && (n.title || n.text)).length;
-  const nuancesHtml = nuancesCount
-    ? `<span class="lesson-card-nuances" title="${nuancesCount} ${nuancesCount === 1 ? 'addendum' : 'addendums'}">${nuancesCount === 1 ? '1 nuance' : nuancesCount + ' nuances'}</span>`
+  const nuanceList = (lesson.nuances || []).filter(n => n && (n.title || n.text));
+  const nuancesHtml = nuanceList.length
+    ? `
+      <div class="lesson-card-nuances-inline">
+        ${nuanceList.map((n, i) => {
+          const t = n.text ? truncate(n.text, 140) : '';
+          const dash = n.title && t ? ' — ' : '';
+          return `
+            <div class="lesson-card-nuance">
+              <span class="lesson-card-nuance-num">№ ${i + 1}</span>
+              ${n.title ? `<span class="lesson-card-nuance-title">${escapeHtml(n.title)}</span>` : ''}
+              ${t ? `<span class="lesson-card-nuance-text">${dash}${escapeHtml(t)}</span>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>`
     : '';
   card.innerHTML = `
     <div class="lesson-card-head">
@@ -410,11 +423,11 @@ function buildLessonCard(lesson, pillar) {
       <span class="lesson-card-stars">${stars}</span>
     </div>
     <p class="lesson-card-snippet">${escapeHtml(snippet)}${plain.length > 180 ? '…' : ''}</p>
+    ${nuancesHtml}
     <div class="lesson-card-foot">
       ${pillar ? `<span class="lesson-card-pillar" style="background:${hexToSoft(pillar.color)};color:${pillar.color}">${escapeHtml(pillar.name)}</span>` : ''}
       <span>${dateStr}</span>
       ${tagsHtml}
-      ${nuancesHtml}
       ${studiesHtml}
     </div>
   `;
@@ -1046,6 +1059,13 @@ function stripHtml(html) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html || '';
   return (tmp.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function truncate(s, n) {
+  if (!s) return '';
+  const t = String(s).trim();
+  if (t.length <= n) return t;
+  return t.slice(0, n).replace(/\s+\S*$/, '') + '…';
 }
 
 function hexToSoft(hex) {

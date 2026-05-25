@@ -1338,23 +1338,48 @@ body {
   word-wrap: break-word;
 }
 
-/* Badge on lesson card */
-.lesson-card-nuances {
-  font-style: normal;
-  font-weight: 600;
-  color: var(--ink-medium);
-  background: var(--bg-parchment);
-  border: 1px solid var(--border);
-  padding: 2px 8px;
-  border-radius: 2px;
-  font-size: 11px;
-  letter-spacing: 0.04em;
+/* Inline nuances right on the lesson card — the lesson's variants live with it */
+.lesson-card-nuances-inline {
+  margin: 10px 0 12px;
+  padding: 10px 14px 8px;
+  background: rgba(212, 175, 55, 0.07);
+  border-left: 2px solid var(--gold);
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
-.lesson-card-nuances::before {
-  content: '◦';
-  margin-right: 4px;
+.lesson-card-nuance {
+  font-size: 13px;
+  color: var(--ink-medium);
+  line-height: 1.55;
+  padding: 3px 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.lesson-card-nuance + .lesson-card-nuance {
+  border-top: 1px dashed rgba(212, 175, 55, 0.25);
+  margin-top: 4px;
+  padding-top: 7px;
+}
+.lesson-card-nuance-num {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 600;
   color: var(--gold-dark);
-  font-weight: 700;
+  font-size: 13px;
+  margin-right: 8px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.lesson-card-nuance-title {
+  font-family: var(--display);
+  font-weight: 600;
+  color: var(--ink-dark);
+  font-size: 14px;
+}
+.lesson-card-nuance-text {
+  color: var(--ink-medium);
+  font-style: italic;
 }
 
 /* ===== Responsive ===== */
