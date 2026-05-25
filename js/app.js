@@ -346,6 +346,9 @@ function renderStudyAddendumsPanel(study, ns) {
         let html = '';
         if (n.body) html = sanitizeAddendumHtml(n.body);
         else if (n.text) html = `<p>${escapeHtml(n.text)}</p>`;
+        const descHtml = n.description
+          ? `<div class="study-nuance-desc">${escapeHtml(n.description)}</div>`
+          : '';
         return `
           <div class="study-nuance">
             <div class="study-nuance-head">
@@ -355,6 +358,7 @@ function renderStudyAddendumsPanel(study, ns) {
                       data-study-id="${escapeHtml(study.id)}" data-nuance-id="${escapeHtml(n.id)}"
                       title="Edit">✎</button>
             </div>
+            ${descHtml}
             ${html ? `<div class="study-nuance-body">${html}</div>` : ''}
           </div>
         `;
@@ -993,55 +997,15 @@ function renderLessonNuances(lesson) {
 // ===== Export / Import =====
 // ===== Study addendum modal =====
 function setupStudyNuanceModal() {
-  // Rich-text toolbar wired to the contenteditable body
-  const body = $('sn-body');
-  document.querySelectorAll('#study-nuance-modal .rich-toolbar button[data-cmd]').forEach(btn => {
-    btn.addEventListener('mousedown', (e) => e.preventDefault());
-    btn.addEventListener('click', () => {
-      body.focus();
-      const arg = btn.dataset.arg;
-      if (arg) document.execCommand(btn.dataset.cmd, false, arg);
-      else document.execCommand(btn.dataset.cmd, false);
-    });
-  });
-  body.addEventListener('keydown', (e) => {
-    if (!(e.metaKey || e.ctrlKey)) return;
-    const k = e.key.toLowerCase();
-    if (k === 'b') { e.preventDefault(); document.execCommand('bold'); }
-    if (k === 'i') { e.preventDefault(); document.execCommand('italic'); }
-  });
-
-  // Drag-and-drop / click-to-browse HTML import
-  const drop = $('sn-html-drop');
-  const fileInput = $('sn-html-file');
-  drop.addEventListener('click', () => fileInput.click());
-  drop.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    drop.classList.add('drag-over');
-  });
-  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
-  drop.addEventListener('drop', (e) => {
-    e.preventDefault();
-    drop.classList.remove('drag-over');
-    const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) importHtmlIntoEditor(file);
-  });
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) importHtmlIntoEditor(file);
-    fileInput.value = '';
-  });
-
   $('sn-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('sn-id').value;
     const studyId = $('sn-study-id').value;
     const title = $('sn-title').value.trim();
-    const html = sanitizeAddendumHtml(body.innerHTML);
+    const description = $('sn-description').value.trim();
+    const html = sanitizeAddendumHtml($('sn-body').value);
     if (!title || !studyId) return;
-    // Persist both 'text' (legacy plain field, kept for back-compat reads) and
-    // 'body' (HTML). When loading, body wins if present.
-    const data = { title, body: html, text: html };
+    const data = { title, description, body: html };
     if (id) {
       await updateStudyNuance(id, data);
       showToast('Addendum updated');
@@ -1073,47 +1037,13 @@ function openStudyNuanceModal(studyId, nuanceId) {
   $('sn-id').value = nuance ? nuance.id : '';
   $('sn-study-id').value = studyId;
   $('sn-title').value = nuance ? (nuance.title || '') : '';
-  $('sn-body').innerHTML = nuance ? sanitizeAddendumHtml(nuance.body || nuance.text || '') : '';
+  $('sn-description').value = nuance ? (nuance.description || '') : '';
+  $('sn-body').value = nuance ? (nuance.body || nuance.text || '') : '';
   $('sn-delete-btn').classList.toggle('hidden', !nuance);
   // Make sure the panel is open so the user sees the result on save
   expandedStudies.add(studyId);
   openModal('study-nuance-modal');
   setTimeout(() => $('sn-title').focus(), 50);
-}
-
-// Reads a user-dropped .html file and injects its <body> (sanitized) into the
-// addendum body editor. Auto-fills the title field from <title> or the first
-// heading when empty. The user can edit either field afterwards.
-async function importHtmlIntoEditor(file) {
-  if (!/\.html?$/i.test(file.name) && file.type !== 'text/html') {
-    showToast('Drop an .html file', 'error');
-    return;
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    showToast('HTML file too large (max 2 MB)', 'error');
-    return;
-  }
-  try {
-    const text = await file.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, 'text/html');
-    const bodyEl = doc.body || doc.documentElement;
-    // Strip <style>/<script>/<link>/<meta> tags before sanitizing for clarity
-    bodyEl.querySelectorAll('script, style, link, meta, noscript').forEach(el => el.remove());
-    const html = sanitizeAddendumHtml(bodyEl.innerHTML);
-    $('sn-body').innerHTML = html;
-
-    // Auto-fill the title from <title> or first <h1>/<h2> when empty
-    const titleEl = $('sn-title');
-    if (!titleEl.value.trim()) {
-      const t = (doc.title || doc.querySelector('h1, h2, h3')?.textContent || '').trim();
-      if (t) titleEl.value = t.slice(0, 120);
-    }
-    showToast(`Imported ${file.name}`);
-  } catch (err) {
-    console.error(err);
-    showToast('Could not read that file: ' + (err.message || err), 'error');
-  }
 }
 
 // Permissive sanitizer for addendum bodies. Keeps headings, lists, paragraphs,

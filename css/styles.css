@@ -1121,51 +1121,37 @@ body {
 }
 .study-nuance-body a:hover { border-color: var(--gold-dark); }
 
-/* Tall variant of the rich editor used in the addendum modal */
-.rich-editor-tall {
-  min-height: 260px;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-/* HTML drop zone inside the addendum modal */
-.html-drop-zone {
-  border: 1.5px dashed var(--border-strong);
+/* Plain HTML textarea in the addendum modal */
+.html-textarea {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-dark);
+  background: var(--bg-parchment);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
-  background: var(--bg-parchment);
-  margin-bottom: 6px;
+  min-height: 280px;
+  resize: vertical;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
+  white-space: pre-wrap;
 }
-.html-drop-zone:hover,
-.html-drop-zone.drag-over {
-  border-color: var(--gold);
-  background: var(--gold-soft);
-}
-.html-drop-prompt {
-  font-family: var(--serif);
-  font-size: 13.5px;
-  color: var(--ink-medium);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.html-drop-prompt strong {
-  color: var(--gold-dark);
-  font-weight: 600;
-}
-.html-drop-icon {
+.html-textarea:focus { border-color: var(--gold); }
+
+/* Description line under the addendum title, in the inline panel */
+.study-nuance-desc {
   font-family: var(--display);
-  font-size: 18px;
-  color: var(--gold);
-  line-height: 1;
+  font-style: italic;
+  color: var(--ink-medium);
+  font-size: 14px;
+  margin-top: 2px;
+  padding-left: 28px;
+  line-height: 1.5;
 }
 .study-nuance-empty {
   font-family: var(--display);

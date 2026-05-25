@@ -221,24 +221,14 @@
     <form id="sn-form" class="form">
       <input type="hidden" id="sn-id">
       <input type="hidden" id="sn-study-id">
-      <label>Title <span class="hint">(short — the variation in a phrase)</span><input type="text" id="sn-title" maxlength="120" required></label>
-      <label>Body <span class="hint">(rich HTML — paragraphs, headings, lists, quotes, links)</span>
-        <div id="sn-html-drop" class="html-drop-zone">
-          <input type="file" id="sn-html-file" accept=".html,.htm,text/html" hidden>
-          <div class="html-drop-prompt">
-            <span class="html-drop-icon">↑</span>
-            <span>Drop an <strong>.html</strong> file or <strong>click to browse</strong> — its &lt;body&gt; replaces the editor</span>
-          </div>
-        </div>
-        <div class="rich-toolbar">
-          <button type="button" data-cmd="bold" title="Bold (⌘B)"><strong>B</strong></button>
-          <button type="button" data-cmd="italic" title="Italic (⌘I)"><em>I</em></button>
-          <button type="button" data-cmd="formatBlock" data-arg="H3" title="Heading">H</button>
-          <button type="button" data-cmd="formatBlock" data-arg="BLOCKQUOTE" title="Quote">”</button>
-          <button type="button" data-cmd="insertUnorderedList" title="List">•</button>
-          <button type="button" data-cmd="formatBlock" data-arg="P" title="Paragraph">¶</button>
-        </div>
-        <div id="sn-body" class="rich-editor rich-editor-tall" contenteditable="true" data-placeholder="Write or paste HTML. Headings, lists, quotes are supported."></div>
+      <label>Title <span class="hint">(short — the variation in a phrase)</span>
+        <input type="text" id="sn-title" maxlength="120" required>
+      </label>
+      <label>Description <span class="hint">(one or two lines, shown under the title)</span>
+        <input type="text" id="sn-description" maxlength="240">
+      </label>
+      <label>HTML <span class="hint">(paste your HTML — it's rendered as-is)</span>
+        <textarea id="sn-body" class="html-textarea" rows="16" placeholder="<p>Paste any HTML here…</p>"></textarea>
       </label>
       <div class="form-actions">
         <button type="button" id="sn-delete-btn" class="btn-danger hidden">Delete</button>
