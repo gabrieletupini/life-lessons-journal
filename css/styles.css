@@ -963,6 +963,15 @@ body {
 }
 .rich-editor strong, .rich-editor b { font-weight: 700; color: var(--ink-dark); }
 .rich-editor em, .rich-editor i { font-style: italic; }
+/* Defang any inline color/background carried over from pasted content so the
+   editor's own typography wins. */
+.rich-editor [style] {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+.rich-editor mark { background: transparent; color: inherit; }
+.rich-editor font { color: inherit !important; }
 
 /* ===== Tag suggestions ===== */
 .tag-suggestions {
@@ -1456,6 +1465,54 @@ body {
 .study-add-nuance-btn:hover {
   background: var(--gold-soft);
   border-style: solid;
+  color: var(--ink-dark);
+}
+
+/* Linked addendums picker inside lesson modal */
+.addendums-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.addendums-picker-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px 8px;
+  background: var(--bg-parchment);
+}
+.addendums-picker-group-title {
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--gold-dark);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.addendums-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--ink-medium);
+  margin-bottom: 4px;
+}
+.addendums-picker-row:last-child { margin-bottom: 0; }
+.addendums-picker-row:hover { border-color: var(--gold); color: var(--ink-dark); }
+.addendums-picker-row input { margin: 0; accent-color: var(--gold-dark); }
+.addendums-picker-row.checked {
+  background: var(--gold-soft);
+  border-color: var(--gold);
   color: var(--ink-dark);
 }
 

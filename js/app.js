@@ -980,11 +980,28 @@ function setupLessonModal() {
     updateTagSuggestions();
   });
 
-  $('add-nuance-btn').addEventListener('click', () => {
-    const editor = $('lesson-nuances-editor');
-    editor.appendChild(buildNuanceRow({}, editor.querySelectorAll('.nuance-row').length));
-    const last = editor.querySelector('.nuance-row:last-child input.nuance-title');
-    if (last) last.focus();
+  // Paste handler: strip inline styles/classes/colors so pasted text adopts
+  // the editor's own typography instead of carrying foreign colors/backgrounds.
+  editor.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const data = e.clipboardData || window.clipboardData;
+    if (!data) return;
+    const html = data.getData('text/html');
+    if (html) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      tmp.querySelectorAll('*').forEach(el => {
+        el.removeAttribute('style');
+        el.removeAttribute('class');
+        el.removeAttribute('color');
+        el.removeAttribute('bgcolor');
+        el.removeAttribute('face');
+      });
+      document.execCommand('insertHTML', false, tmp.innerHTML);
+    } else {
+      const text = data.getData('text/plain');
+      document.execCommand('insertText', false, text);
+    }
   });
 
   form.addEventListener('submit', async (e) => {
@@ -999,7 +1016,7 @@ function setupLessonModal() {
     if (!title || !pillarId) return;
 
     const studyIds = [...document.querySelectorAll('#lesson-studies-picker input:checked')].map(cb => cb.value);
-    const nuances = collectNuances();
+    const addendumIds = [...document.querySelectorAll('#lesson-addendums-picker input:checked')].map(cb => cb.value);
 
     const data = {
       title,
@@ -1009,7 +1026,7 @@ function setupLessonModal() {
       importance: editingStars,
       tags: tagsRaw.split(',').map(t => t.trim()).filter(Boolean),
       studyIds,
-      nuances,
+      addendumIds,
     };
     if (id) {
       await updateLesson(id, data);
@@ -1089,13 +1106,61 @@ function openLessonModal(lesson) {
 
   $('lesson-delete-btn').classList.toggle('hidden', !lesson);
 
-  // Studies picker pre-selection from existing lesson, then render based on current pillar
+  // Studies and addendums picker pre-selection from existing lesson
   editingStudyIds = lesson && lesson.studyIds ? [...lesson.studyIds] : [];
+  editingAddendumIds = lesson && lesson.addendumIds ? [...lesson.addendumIds] : [];
   updateTagSuggestions();
   refreshStudiesPicker();
-  renderNuancesEditor(lesson ? lesson.nuances || [] : []);
+  refreshAddendumsPicker();
   openModal('lesson-modal');
   setTimeout(() => $('lesson-title').focus(), 50);
+}
+
+let editingAddendumIds = [];
+
+function refreshAddendumsPicker() {
+  const labelEl = document.getElementById('lesson-addendums-label');
+  const pickerEl = document.getElementById('lesson-addendums-picker');
+  if (!labelEl || !pickerEl) return;
+
+  // Group all study_nuances by study, keep only studies that have nuances and
+  // for which we have a STUDIES catalog entry (so we can show the study title).
+  const grouped = new Map();
+  for (const n of studyNuances) {
+    const study = STUDIES.find(s => s.id === n.studyId);
+    if (!study) continue;
+    if (!grouped.has(study.id)) grouped.set(study.id, { study, items: [] });
+    grouped.get(study.id).items.push(n);
+  }
+
+  if (grouped.size === 0) {
+    labelEl.classList.add('hidden');
+    pickerEl.innerHTML = '';
+    return;
+  }
+  labelEl.classList.remove('hidden');
+
+  pickerEl.innerHTML = [...grouped.values()].map(({ study, items }) => `
+    <div class="addendums-picker-group">
+      <div class="addendums-picker-group-title">${escapeHtml(study.title)}</div>
+      ${items.map(n => {
+        const checked = editingAddendumIds.includes(n.id);
+        return `
+          <label class="addendums-picker-row${checked ? ' checked' : ''}">
+            <input type="checkbox" value="${escapeHtml(n.id)}"${checked ? ' checked' : ''}>
+            <span>${escapeHtml(n.title || '(untitled)')}</span>
+          </label>
+        `;
+      }).join('')}
+    </div>
+  `).join('');
+
+  pickerEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('.addendums-picker-row').classList.toggle('checked', cb.checked);
+      editingAddendumIds = [...pickerEl.querySelectorAll('input:checked')].map(c => c.value);
+    });
+  });
 }
 
 let editingStudyIds = [];
@@ -1139,51 +1204,6 @@ function refreshStars() {
   $('lesson-stars').dataset.val = editingStars;
 }
 
-// ===== Nuances editor =====
-function renderNuancesEditor(nuances) {
-  const editor = document.getElementById('lesson-nuances-editor');
-  if (!editor) return;
-  editor.innerHTML = '';
-  (nuances || []).forEach((n, i) => editor.appendChild(buildNuanceRow(n, i)));
-}
-
-function buildNuanceRow(nuance, index) {
-  const row = document.createElement('div');
-  row.className = 'nuance-row';
-  row.innerHTML = `
-    <div class="nuance-row-head">
-      <span class="nuance-num">№ ${(index || 0) + 1}</span>
-      <input type="text" class="nuance-title" placeholder="Title — e.g. edge case, variation, caveat" value="${escapeHtml(nuance && nuance.title || '')}">
-      <button type="button" class="nuance-remove" title="Remove">×</button>
-    </div>
-    <textarea class="nuance-text" placeholder="What changes — the variation, the addendum, the subtlety…">${escapeHtml(nuance && nuance.text || '')}</textarea>
-  `;
-  row.querySelector('.nuance-remove').addEventListener('click', () => {
-    row.remove();
-    renumberNuances();
-  });
-  return row;
-}
-
-function renumberNuances() {
-  document.querySelectorAll('#lesson-nuances-editor .nuance-row').forEach((row, i) => {
-    const numEl = row.querySelector('.nuance-num');
-    if (numEl) numEl.textContent = `№ ${i + 1}`;
-  });
-}
-
-function collectNuances() {
-  const rows = document.querySelectorAll('#lesson-nuances-editor .nuance-row');
-  const out = [];
-  rows.forEach(row => {
-    const title = (row.querySelector('.nuance-title')?.value || '').trim();
-    const text = (row.querySelector('.nuance-text')?.value || '').trim();
-    if (!title && !text) return;
-    out.push({ title, text });
-  });
-  return out;
-}
-
 // ===== Lesson view modal =====
 function setupLessonViewModal() {
   $('lv-edit-btn').addEventListener('click', () => {
@@ -1222,15 +1242,17 @@ function openLessonView(lesson) {
   const tagsEl = $('lv-tags');
   tagsEl.innerHTML = (lesson.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('');
   $('lv-description').innerHTML = sanitizeRichHtml(lesson.description || '');
-  renderLessonNuances(lesson);
+  renderLinkedAddendums(lesson);
   renderLinkedStudies(lesson);
   openModal('lesson-view-modal');
 }
 
-function renderLessonNuances(lesson) {
+function renderLinkedAddendums(lesson) {
   const el = document.getElementById('lv-nuances');
   if (!el) return;
-  const list = (lesson.nuances || []).filter(n => n && (n.title || n.text));
+  const list = (lesson.addendumIds || [])
+    .map(id => studyNuances.find(n => n.id === id))
+    .filter(Boolean);
   if (list.length === 0) {
     el.classList.add('hidden');
     el.innerHTML = '';
@@ -1238,15 +1260,36 @@ function renderLessonNuances(lesson) {
   }
   el.classList.remove('hidden');
   el.innerHTML = `
-    <div class="lv-nuances-title">Nuances &amp; Addendums</div>
-    ${list.map((n, i) => `
-      <div class="lv-nuance">
-        <span class="lv-nuance-num">№ ${i + 1}</span>
-        ${n.title ? `<div class="lv-nuance-title">${escapeHtml(n.title)}</div>` : ''}
-        ${n.text ? `<div class="lv-nuance-text">${escapeHtml(n.text)}</div>` : ''}
-      </div>
-    `).join('')}
+    <div class="lv-nuances-title">Linked addendums</div>
+    ${list.map((n, i) => {
+      const study = STUDIES.find(s => s.id === n.studyId);
+      const studyTitle = study ? study.title : 'Study';
+      return `
+        <div class="lv-addendum study-nuance">
+          <div class="study-nuance-row">
+            <div class="study-nuance-info">
+              <div class="study-nuance-head">
+                <span class="study-nuance-num">№ ${i + 1}</span>
+                <span class="study-nuance-title">${escapeHtml(n.title || '(untitled)')}</span>
+              </div>
+              <div class="study-nuance-desc">From: ${escapeHtml(studyTitle)}</div>
+              ${n.description ? `<div class="study-nuance-desc">${escapeHtml(n.description)}</div>` : ''}
+            </div>
+            <div class="study-nuance-actions">
+              <button type="button" class="study-btn study-btn-view" data-action="lv-view-addendum" data-nuance-id="${escapeHtml(n.id)}">View →</button>
+              <button type="button" class="study-btn study-btn-download" data-action="lv-download-addendum" data-nuance-id="${escapeHtml(n.id)}">⬇ Download</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('')}
   `;
+  el.querySelectorAll('[data-action="lv-view-addendum"]').forEach(btn => {
+    btn.addEventListener('click', () => viewAddendum(btn.dataset.nuanceId));
+  });
+  el.querySelectorAll('[data-action="lv-download-addendum"]').forEach(btn => {
+    btn.addEventListener('click', () => downloadAddendum(btn.dataset.nuanceId));
+  });
 }
 
 // ===== Export / Import =====
