@@ -72,6 +72,11 @@
     </div>
     <div id="pillar-studies" class="pillar-studies hidden"></div>
 
+    <div class="pillar-view-toggle" id="pillar-view-toggle">
+      <button data-view="calendar" class="active">📅 Calendar</button>
+      <button data-view="catalog">📋 Catalog</button>
+    </div>
+
     <div class="lessons-controls">
       <input id="lessons-search" type="text" placeholder="Search in this pillar…">
       <select id="lessons-sort">
@@ -81,7 +86,10 @@
         <option value="title-asc">Alphabetical</option>
       </select>
     </div>
-    <div id="lessons-list" class="lessons-list"></div>
+
+    <div id="lessons-calendar" class="lessons-calendar"></div>
+
+    <div id="lessons-list" class="lessons-list hidden"></div>
     <div id="lessons-empty" class="empty-state hidden">
       <p>No lessons in this pillar yet.</p>
     </div>

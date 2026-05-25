@@ -51,6 +51,9 @@ let pendingNuanceBody = '';      // raw HTML staged for the current addendum mod
 let pendingNuanceFileName = '';  // filename of the most recently dropped HTML
 let seedAttempted = false;       // run the addendum seeder only once per session
 let currentPillarId = null;
+let pillarView = 'calendar';     // 'calendar' | 'catalog'
+let calendarYear = new Date().getFullYear();
+let calendarMonth = new Date().getMonth();
 let currentSort = 'date-desc';
 let currentLessonSearch = '';
 let currentGlobalSearch = '';
@@ -154,6 +157,7 @@ function startApp() {
   setupStudyNuanceModal();
   setupExportModal();
   setupSearch();
+  setupPillarViewToggle();
   setupKeyboard();
 
   $('seed-defaults-btn').addEventListener('click', async () => {
@@ -440,33 +444,212 @@ function renderPillarDetail() {
 
   renderPillarStudies(p);
 
-  let items = lessons.filter(l => l.pillarId === currentPillarId);
+  // Reflect the active view in the toggle
+  document.querySelectorAll('#pillar-view-toggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === pillarView);
+  });
 
+  // The sort dropdown only makes sense in catalog view
+  const sortEl = document.getElementById('lessons-sort');
+  if (sortEl) sortEl.style.visibility = pillarView === 'catalog' ? 'visible' : 'hidden';
+
+  let items = lessons.filter(l => l.pillarId === currentPillarId);
   if (currentLessonSearch) {
     const q = currentLessonSearch.toLowerCase();
     items = items.filter(l => matchesQuery(l, q));
   }
 
-  items = sortLessons(items, currentSort);
-
-  lessonsList.innerHTML = '';
+  const calEl = document.getElementById('lessons-calendar');
   if (items.length === 0) {
+    calEl.classList.add('hidden');
+    lessonsList.classList.add('hidden');
+    lessonsList.innerHTML = '';
     lessonsEmpty.classList.remove('hidden');
     return;
   }
   lessonsEmpty.classList.add('hidden');
 
-  const groupByMonth = currentSort === 'date-desc' || currentSort === 'date-asc';
-  if (groupByMonth) {
-    const groups = groupLessonsByMonth(items, currentSort === 'date-desc');
-    groups.forEach(g => {
-      lessonsList.appendChild(buildMonthGroup(g, p));
-    });
+  if (pillarView === 'calendar') {
+    calEl.classList.remove('hidden');
+    lessonsList.classList.add('hidden');
+    lessonsList.innerHTML = '';
+    renderLessonsCalendar(p, items);
   } else {
-    items.forEach(l => {
-      lessonsList.appendChild(buildLessonCard(l, p));
-    });
+    calEl.classList.add('hidden');
+    calEl.innerHTML = '';
+    lessonsList.classList.remove('hidden');
+    lessonsList.innerHTML = '';
+    const sorted = sortLessons(items, currentSort);
+    const groupByMonth = currentSort === 'date-desc' || currentSort === 'date-asc';
+    if (groupByMonth) {
+      const groups = groupLessonsByMonth(sorted, currentSort === 'date-desc');
+      groups.forEach(g => lessonsList.appendChild(buildMonthGroup(g, p)));
+    } else {
+      sorted.forEach(l => lessonsList.appendChild(buildLessonCard(l, p)));
+    }
   }
+}
+
+// ===== Calendar view =====
+const WEEKDAY_LABELS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function renderLessonsCalendar(pillar, items) {
+  const cal = document.getElementById('lessons-calendar');
+
+  // Group lessons by date key
+  const byDate = new Map();
+  const undated = [];
+  for (const l of items) {
+    const ts = dateValue(l);
+    if (!ts) { undated.push(l); continue; }
+    const d = new Date(ts);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!byDate.has(key)) byDate.set(key, []);
+    byDate.get(key).push(l);
+  }
+
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === calendarYear && today.getMonth() === calendarMonth;
+  const firstWeekday = new Date(calendarYear, calendarMonth, 1).getDay();
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const monthLabel = new Date(calendarYear, calendarMonth, 1)
+    .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  const cellsHtml = [];
+  for (let i = 0; i < firstWeekday; i++) cellsHtml.push('<div class="cal-day cal-day-empty"></div>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayLessons = byDate.get(key) || [];
+    const isToday = isCurrentMonth && d === today.getDate();
+    const chips = dayLessons.slice(0, 2).map(l => `
+      <div class="cal-chip" data-lesson-id="${escapeHtml(l.id)}"
+           style="border-left-color:${pillar.color}"
+           title="${escapeHtml(l.title)}">${escapeHtml(truncate(l.title, 22))}</div>
+    `).join('');
+    const more = dayLessons.length > 2
+      ? `<div class="cal-more" data-date="${key}">+${dayLessons.length - 2} more</div>`
+      : '';
+    cellsHtml.push(`
+      <div class="cal-day${isToday ? ' cal-day-today' : ''}${dayLessons.length ? ' cal-day-has' : ''}"
+           data-date="${key}">
+        <div class="cal-day-num">${d}</div>
+        ${chips}
+        ${more}
+      </div>
+    `);
+  }
+  while (cellsHtml.length % 7 !== 0) cellsHtml.push('<div class="cal-day cal-day-empty"></div>');
+
+  const undatedHtml = undated.length
+    ? `<div class="cal-undated">
+        <div class="cal-undated-title">Undated lessons — ${undated.length}</div>
+        <div class="cal-undated-list">
+          ${undated.map(l => `
+            <div class="cal-chip" data-lesson-id="${escapeHtml(l.id)}"
+                 style="border-left-color:${pillar.color}"
+                 title="${escapeHtml(l.title)}">${escapeHtml(truncate(l.title, 30))}</div>
+          `).join('')}
+        </div>
+      </div>`
+    : '';
+
+  cal.innerHTML = `
+    <div class="cal-nav">
+      <button class="cal-nav-btn" data-cal-nav="prev" title="Previous month">←</button>
+      <span class="cal-month-label">${escapeHtml(monthLabel)}</span>
+      <button class="cal-nav-btn" data-cal-nav="next" title="Next month">→</button>
+    </div>
+    <div class="cal-weekdays">${WEEKDAY_LABELS_SHORT.map(w => `<span>${w}</span>`).join('')}</div>
+    <div class="cal-grid">${cellsHtml.join('')}</div>
+    ${undatedHtml}
+  `;
+
+  // Wire nav
+  cal.querySelectorAll('[data-cal-nav]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.calNav === 'prev') {
+        calendarMonth--;
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+      } else {
+        calendarMonth++;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+      }
+      renderPillarDetail();
+    });
+  });
+
+  // Lesson chips open the lesson view directly
+  cal.querySelectorAll('.cal-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const l = lessons.find(x => x.id === chip.dataset.lessonId);
+      if (l) openLessonView(l);
+    });
+  });
+
+  // "+N more" opens a popover listing all lessons of that day
+  cal.querySelectorAll('.cal-more').forEach(more => {
+    more.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = more.dataset.date;
+      const dayLessons = byDate.get(key) || [];
+      showDayPopover(more, key, dayLessons);
+    });
+  });
+
+  // Clicking elsewhere on a day cell with lessons also opens the popover
+  cal.querySelectorAll('.cal-day-has').forEach(cell => {
+    cell.addEventListener('click', (e) => {
+      if (e.target.closest('.cal-chip, .cal-more')) return;
+      const key = cell.dataset.date;
+      const dayLessons = byDate.get(key) || [];
+      if (dayLessons.length > 0) showDayPopover(cell, key, dayLessons);
+    });
+  });
+}
+
+function showDayPopover(anchor, dateKey, dayLessons) {
+  document.querySelector('.day-popover')?.remove();
+  const pop = document.createElement('div');
+  pop.className = 'day-popover';
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const dateLabel = new Date(y, m - 1, d)
+    .toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  pop.innerHTML = `
+    <div class="day-popover-title">${escapeHtml(dateLabel)} — ${dayLessons.length} lesson${dayLessons.length === 1 ? '' : 's'}</div>
+    <ul class="day-popover-list">
+      ${dayLessons.map(l => `
+        <li data-lesson-id="${escapeHtml(l.id)}">
+          <span class="day-popover-num">★ ${l.importance || 0}</span>
+          <span>${escapeHtml(l.title)}</span>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+  document.body.appendChild(pop);
+  const rect = anchor.getBoundingClientRect();
+  const top = rect.bottom + window.scrollY + 6;
+  const left = Math.min(
+    rect.left + window.scrollX,
+    window.innerWidth - pop.offsetWidth - 12
+  );
+  pop.style.top = `${top}px`;
+  pop.style.left = `${Math.max(8, left)}px`;
+  pop.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      const l = lessons.find(x => x.id === li.dataset.lessonId);
+      pop.remove();
+      if (l) openLessonView(l);
+    });
+  });
+  setTimeout(() => {
+    document.addEventListener('click', function handler(ev) {
+      if (!pop.contains(ev.target)) {
+        pop.remove();
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 0);
 }
 
 function groupLessonsByMonth(items, desc) {
@@ -624,6 +807,22 @@ function openSearch() {
   globalSearchInput.value = '';
   searchResults.innerHTML = '';
   setTimeout(() => globalSearchInput.focus(), 50);
+}
+
+function setupPillarViewToggle() {
+  document.querySelectorAll('#pillar-view-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pillarView = btn.dataset.view;
+      // When switching to calendar, snap to current month so the user lands on
+      // something pertinent rather than wherever they last navigated.
+      if (pillarView === 'calendar') {
+        const now = new Date();
+        calendarYear = now.getFullYear();
+        calendarMonth = now.getMonth();
+      }
+      if (currentPillarId) renderPillarDetail();
+    });
+  });
 }
 
 function setupSearch() {
