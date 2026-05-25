@@ -344,32 +344,40 @@ function renderPillarStudies(pillar) {
   container.querySelectorAll('[data-action="edit-nuance"]').forEach(btn => {
     btn.addEventListener('click', () => openStudyNuanceModal(btn.dataset.studyId, btn.dataset.nuanceId));
   });
+  container.querySelectorAll('[data-action="view-nuance"]').forEach(btn => {
+    btn.addEventListener('click', () => viewAddendum(btn.dataset.nuanceId));
+  });
+  container.querySelectorAll('[data-action="download-nuance"]').forEach(btn => {
+    btn.addEventListener('click', () => downloadAddendum(btn.dataset.nuanceId));
+  });
 }
 
 function renderStudyAddendumsPanel(study, ns) {
   const items = ns.length
     ? ns.map((n, i) => {
-        const raw = n.body || n.text || '';
-        // Wrap fragments in a minimal doc shell so legacy plain-text addendums
-        // still render. Full-doc HTML is left untouched so its <head>/<style>
-        // applies inside the iframe.
-        const looksLikeDoc = /^\s*<(?:!doctype|html)/i.test(raw);
-        const docHtml = looksLikeDoc ? raw : `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:'Crimson Text',Georgia,serif;color:#3e2723;background:#f4ede1;padding:18px;line-height:1.7;margin:0}h1,h2,h3,h4{font-family:'Cormorant Garamond',serif;font-weight:600;letter-spacing:0.02em}blockquote{font-style:italic;border-left:2px solid #d4af37;padding-left:14px;margin:10px 0;color:#3e2723}a{color:#a8801f}</style></head><body>${escapeHtml(raw)}</body></html>`;
-        const srcdoc = String(docHtml).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         const descHtml = n.description
           ? `<div class="study-nuance-desc">${escapeHtml(n.description)}</div>`
           : '';
         return `
           <div class="study-nuance">
-            <div class="study-nuance-head">
-              <span class="study-nuance-num">№ ${i + 1}</span>
-              <span class="study-nuance-title">${escapeHtml(n.title || '')}</span>
-              <button type="button" class="study-nuance-edit" data-action="edit-nuance"
-                      data-study-id="${escapeHtml(study.id)}" data-nuance-id="${escapeHtml(n.id)}"
-                      title="Edit">✎</button>
+            <div class="study-nuance-row">
+              <div class="study-nuance-info">
+                <div class="study-nuance-head">
+                  <span class="study-nuance-num">№ ${i + 1}</span>
+                  <span class="study-nuance-title">${escapeHtml(n.title || '')}</span>
+                </div>
+                ${descHtml}
+              </div>
+              <div class="study-nuance-actions">
+                <button type="button" class="study-btn study-btn-view" data-action="view-nuance"
+                        data-nuance-id="${escapeHtml(n.id)}">View →</button>
+                <button type="button" class="study-btn study-btn-download" data-action="download-nuance"
+                        data-nuance-id="${escapeHtml(n.id)}">⬇ Download</button>
+                <button type="button" class="study-btn study-btn-edit-nuance" data-action="edit-nuance"
+                        data-study-id="${escapeHtml(study.id)}" data-nuance-id="${escapeHtml(n.id)}"
+                        title="Edit">✎ Edit</button>
+              </div>
             </div>
-            ${descHtml}
-            <iframe class="study-nuance-iframe" sandbox srcdoc="${srcdoc}" loading="lazy" title="Addendum ${i + 1}"></iframe>
           </div>
         `;
       }).join('')
@@ -380,6 +388,44 @@ function renderStudyAddendumsPanel(study, ns) {
       <button type="button" class="study-add-nuance-btn" data-action="add-nuance" data-study-id="${escapeHtml(study.id)}">+ Add addendum</button>
     </div>
   `;
+}
+
+// Build a Blob URL for an addendum body. Stash live URLs on a Map so we can
+// revoke them when the panel re-renders, to avoid leaking object URLs.
+const addendumBlobUrls = new Map();
+function blobUrlForAddendum(nuance) {
+  const cached = addendumBlobUrls.get(nuance.id);
+  if (cached) return cached;
+  const raw = nuance.body || nuance.text || '';
+  const looksLikeDoc = /^\s*<(?:!doctype|html)/i.test(raw);
+  const html = looksLikeDoc ? raw : `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(nuance.title || 'Addendum')}</title><style>body{font-family:Georgia,serif;color:#3e2723;background:#f4ede1;padding:40px;line-height:1.7;max-width:680px;margin:0 auto}</style></head><body>${raw}</body></html>`;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  addendumBlobUrls.set(nuance.id, url);
+  return url;
+}
+
+function viewAddendum(nuanceId) {
+  const nuance = studyNuances.find(n => n.id === nuanceId);
+  if (!nuance) return;
+  const url = blobUrlForAddendum(nuance);
+  window.open(url, '_blank', 'noopener');
+}
+
+function downloadAddendum(nuanceId) {
+  const nuance = studyNuances.find(n => n.id === nuanceId);
+  if (!nuance) return;
+  const url = blobUrlForAddendum(nuance);
+  const slug = (nuance.title || 'addendum')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'addendum';
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${slug}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function renderPillarDetail() {

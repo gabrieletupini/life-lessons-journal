@@ -1172,16 +1172,29 @@ body {
 }
 .sn-html-hint { color: var(--ink-soft); font-style: italic; }
 
-/* Iframe rendering of the addendum body inside the panel */
-.study-nuance-iframe {
-  width: 100%;
-  height: 720px;
-  max-height: 80vh;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-top: 10px;
-  background: var(--bg-parchment);
-  display: block;
+/* Addendum row inside the panel — info on the left, action buttons on the right */
+.study-nuance-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.study-nuance-info { min-width: 0; }
+.study-nuance-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.study-btn-edit-nuance {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--ink-medium);
+}
+.study-btn-edit-nuance:hover {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+  color: var(--ink-dark);
 }
 
 /* Description line under the addendum title, in the inline panel */
