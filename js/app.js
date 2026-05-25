@@ -1040,15 +1040,28 @@ function setupStudyNuanceModal() {
       return;
     }
     const data = { title, description, body: pendingNuanceBody };
-    if (id) {
-      await updateStudyNuance(id, data);
-      showToast('Addendum updated');
-    } else {
-      const order = nuancesForStudy(studyId).length;
-      await createStudyNuance({ studyId, ...data, order });
-      showToast('Addendum added');
+    const saveBtn = e.submitter || $('sn-form').querySelector('button[type="submit"]');
+    const originalLabel = saveBtn ? saveBtn.textContent : '';
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+    try {
+      if (id) {
+        await updateStudyNuance(id, data);
+        showToast('Addendum updated');
+      } else {
+        const order = nuancesForStudy(studyId).length;
+        await createStudyNuance({ studyId, ...data, order });
+        showToast('Addendum added');
+      }
+      closeModal('study-nuance-modal');
+    } catch (err) {
+      console.error('Save addendum failed:', err);
+      const msg = err && err.code === 'permission-denied'
+        ? 'Permission denied. Firestore rules don\'t allow writes to study_nuances yet — see console.'
+        : (err && err.message) || String(err);
+      showToast('Save failed: ' + msg, 'error');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
     }
-    closeModal('study-nuance-modal');
   });
 
   $('sn-delete-btn').addEventListener('click', async () => {
