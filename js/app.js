@@ -340,18 +340,25 @@ function renderPillarStudies(pillar) {
 
 function renderStudyAddendumsPanel(study, ns) {
   const items = ns.length
-    ? ns.map((n, i) => `
-        <div class="study-nuance">
-          <div class="study-nuance-head">
-            <span class="study-nuance-num">№ ${i + 1}</span>
-            <span class="study-nuance-title">${escapeHtml(n.title || '')}</span>
-            <button type="button" class="study-nuance-edit" data-action="edit-nuance"
-                    data-study-id="${escapeHtml(study.id)}" data-nuance-id="${escapeHtml(n.id)}"
-                    title="Edit">✎</button>
+    ? ns.map((n, i) => {
+        // Prefer the new HTML 'body' field; fall back to legacy 'text' (which
+        // was plain text on older docs — render as a paragraph for those).
+        let html = '';
+        if (n.body) html = sanitizeAddendumHtml(n.body);
+        else if (n.text) html = `<p>${escapeHtml(n.text)}</p>`;
+        return `
+          <div class="study-nuance">
+            <div class="study-nuance-head">
+              <span class="study-nuance-num">№ ${i + 1}</span>
+              <span class="study-nuance-title">${escapeHtml(n.title || '')}</span>
+              <button type="button" class="study-nuance-edit" data-action="edit-nuance"
+                      data-study-id="${escapeHtml(study.id)}" data-nuance-id="${escapeHtml(n.id)}"
+                      title="Edit">✎</button>
+            </div>
+            ${html ? `<div class="study-nuance-body">${html}</div>` : ''}
           </div>
-          ${n.text ? `<div class="study-nuance-text">${escapeHtml(n.text)}</div>` : ''}
-        </div>
-      `).join('')
+        `;
+      }).join('')
     : '<div class="study-nuance-empty">No addendums yet. Add one to start collecting variations on this study.</div>';
   return `
     <div class="study-addendums-panel">
@@ -986,23 +993,45 @@ function renderLessonNuances(lesson) {
 // ===== Export / Import =====
 // ===== Study addendum modal =====
 function setupStudyNuanceModal() {
+  // Rich-text toolbar wired to the contenteditable body
+  const body = $('sn-body');
+  document.querySelectorAll('#study-nuance-modal .rich-toolbar button[data-cmd]').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
+      body.focus();
+      const arg = btn.dataset.arg;
+      if (arg) document.execCommand(btn.dataset.cmd, false, arg);
+      else document.execCommand(btn.dataset.cmd, false);
+    });
+  });
+  body.addEventListener('keydown', (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b') { e.preventDefault(); document.execCommand('bold'); }
+    if (k === 'i') { e.preventDefault(); document.execCommand('italic'); }
+  });
+
   $('sn-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('sn-id').value;
     const studyId = $('sn-study-id').value;
     const title = $('sn-title').value.trim();
-    const text = $('sn-text').value.trim();
+    const html = sanitizeAddendumHtml(body.innerHTML);
     if (!title || !studyId) return;
+    // Persist both 'text' (legacy plain field, kept for back-compat reads) and
+    // 'body' (HTML). When loading, body wins if present.
+    const data = { title, body: html, text: html };
     if (id) {
-      await updateStudyNuance(id, { title, text });
+      await updateStudyNuance(id, data);
       showToast('Addendum updated');
     } else {
       const order = nuancesForStudy(studyId).length;
-      await createStudyNuance({ studyId, title, text, order });
+      await createStudyNuance({ studyId, ...data, order });
       showToast('Addendum added');
     }
     closeModal('study-nuance-modal');
   });
+
   $('sn-delete-btn').addEventListener('click', async () => {
     const id = $('sn-id').value;
     if (!id) return;
@@ -1023,12 +1052,42 @@ function openStudyNuanceModal(studyId, nuanceId) {
   $('sn-id').value = nuance ? nuance.id : '';
   $('sn-study-id').value = studyId;
   $('sn-title').value = nuance ? (nuance.title || '') : '';
-  $('sn-text').value = nuance ? (nuance.text || '') : '';
+  $('sn-body').innerHTML = nuance ? sanitizeAddendumHtml(nuance.body || nuance.text || '') : '';
   $('sn-delete-btn').classList.toggle('hidden', !nuance);
   // Make sure the panel is open so the user sees the result on save
   expandedStudies.add(studyId);
   openModal('study-nuance-modal');
   setTimeout(() => $('sn-title').focus(), 50);
+}
+
+// Permissive sanitizer for addendum bodies. Keeps headings, lists, paragraphs,
+// blockquote, line breaks, and links — strips scripts/styles/attrs except a
+// short whitelist on <a>.
+const ADDENDUM_ALLOWED_TAGS = new Set([
+  'P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U',
+  'H2', 'H3', 'H4', 'BLOCKQUOTE',
+  'UL', 'OL', 'LI', 'DIV', 'SPAN', 'A',
+]);
+function sanitizeAddendumHtml(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  tmp.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach(el => el.remove());
+  tmp.querySelectorAll('*').forEach(el => {
+    if (!ADDENDUM_ALLOWED_TAGS.has(el.tagName)) {
+      el.replaceWith(...el.childNodes);
+      return;
+    }
+    [...el.attributes].forEach(a => {
+      if (el.tagName === 'A' && (a.name === 'href' || a.name === 'target' || a.name === 'rel')) return;
+      el.removeAttribute(a.name);
+    });
+    // Force safe target on anchors
+    if (el.tagName === 'A' && el.getAttribute('href')) {
+      el.setAttribute('target', '_blank');
+      el.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+  return tmp.innerHTML;
 }
 
 function setupExportModal() {

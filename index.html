@@ -221,8 +221,18 @@
     <form id="sn-form" class="form">
       <input type="hidden" id="sn-id">
       <input type="hidden" id="sn-study-id">
-      <label>Title <span class="hint">(short — the variation in a phrase)</span><input type="text" id="sn-title" maxlength="100" required></label>
-      <label>Text <span class="hint">(the addendum body)</span><textarea id="sn-text" rows="6" required></textarea></label>
+      <label>Title <span class="hint">(short — the variation in a phrase)</span><input type="text" id="sn-title" maxlength="120" required></label>
+      <label>Body <span class="hint">(rich HTML — paragraphs, headings, lists, quotes, links)</span>
+        <div class="rich-toolbar">
+          <button type="button" data-cmd="bold" title="Bold (⌘B)"><strong>B</strong></button>
+          <button type="button" data-cmd="italic" title="Italic (⌘I)"><em>I</em></button>
+          <button type="button" data-cmd="formatBlock" data-arg="H3" title="Heading">H</button>
+          <button type="button" data-cmd="formatBlock" data-arg="BLOCKQUOTE" title="Quote">”</button>
+          <button type="button" data-cmd="insertUnorderedList" title="List">•</button>
+          <button type="button" data-cmd="formatBlock" data-arg="P" title="Paragraph">¶</button>
+        </div>
+        <div id="sn-body" class="rich-editor rich-editor-tall" contenteditable="true" data-placeholder="Write or paste HTML. Headings, lists, quotes are supported."></div>
+      </label>
       <div class="form-actions">
         <button type="button" id="sn-delete-btn" class="btn-danger hidden">Delete</button>
         <button type="submit" class="btn-primary">Save</button>

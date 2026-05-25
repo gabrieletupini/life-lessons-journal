@@ -1073,6 +1073,60 @@ body {
   white-space: pre-wrap;
   padding-left: 28px;
 }
+
+/* Rendered HTML body of an addendum */
+.study-nuance-body {
+  padding-left: 28px;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+.study-nuance-body p { margin-bottom: 8px; }
+.study-nuance-body p:last-child { margin-bottom: 0; }
+.study-nuance-body h2,
+.study-nuance-body h3,
+.study-nuance-body h4 {
+  font-family: var(--display);
+  font-weight: 600;
+  color: var(--ink-dark);
+  margin: 14px 0 6px;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+.study-nuance-body h2 { font-size: 20px; }
+.study-nuance-body h3 { font-size: 17px; }
+.study-nuance-body h4 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-medium); }
+.study-nuance-body ul,
+.study-nuance-body ol {
+  padding-left: 22px;
+  margin: 6px 0 10px;
+}
+.study-nuance-body li { margin-bottom: 3px; }
+.study-nuance-body blockquote {
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 15.5px;
+  color: var(--ink-dark);
+  padding-left: 14px;
+  border-left: 2px solid var(--gold);
+  margin: 10px 0;
+}
+.study-nuance-body strong, .study-nuance-body b { font-weight: 700; color: var(--ink-dark); }
+.study-nuance-body em, .study-nuance-body i { font-style: italic; }
+.study-nuance-body a {
+  color: var(--gold-dark);
+  border-bottom: 1px solid var(--gold-soft);
+  text-decoration: none;
+}
+.study-nuance-body a:hover { border-color: var(--gold-dark); }
+
+/* Tall variant of the rich editor used in the addendum modal */
+.rich-editor-tall {
+  min-height: 260px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
 .study-nuance-empty {
   font-family: var(--display);
   font-style: italic;
