@@ -916,22 +916,29 @@ body {
   margin-bottom: 14px;
 }
 .study-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
   background: var(--bg-parchment);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 8px;
   transition: all 0.2s;
+  overflow: hidden;
 }
 .study-card:hover {
   border-color: var(--gold);
   box-shadow: var(--shadow-soft);
 }
 .study-card:last-child { margin-bottom: 0; }
+.study-card.is-open {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-card);
+}
+.study-card-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
 .study-card-info { min-width: 0; }
 .study-card-title {
   font-family: var(--display);
@@ -992,6 +999,104 @@ body {
 .study-btn-download:hover {
   background: var(--gold-soft);
   border-color: var(--gold);
+}
+.study-btn-addendum {
+  background: transparent;
+  border-color: var(--gold);
+  color: var(--gold-dark);
+  font-family: var(--serif);
+}
+.study-btn-addendum:hover {
+  background: var(--gold-soft);
+  color: var(--ink-dark);
+}
+.study-card.is-open .study-btn-addendum {
+  background: var(--gold-soft);
+  color: var(--ink-dark);
+}
+
+/* Expanded addendums panel under a study */
+.study-addendums-panel {
+  padding: 12px 18px 16px;
+  background: rgba(212, 175, 55, 0.07);
+  border-top: 1px solid var(--gold);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.study-nuance {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+.study-nuance-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.study-nuance-num {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 600;
+  color: var(--gold-dark);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.study-nuance-title {
+  font-family: var(--display);
+  font-weight: 600;
+  color: var(--ink-dark);
+  font-size: 16px;
+  flex: 1;
+}
+.study-nuance-edit {
+  background: transparent;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 3px;
+  transition: all 0.15s;
+  font-family: var(--serif);
+}
+.study-nuance-edit:hover { color: var(--gold-dark); background: var(--gold-soft); }
+.study-nuance-text {
+  font-size: 14px;
+  color: var(--ink-medium);
+  line-height: 1.6;
+  font-style: italic;
+  white-space: pre-wrap;
+  padding-left: 28px;
+}
+.study-nuance-empty {
+  font-family: var(--display);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 8px 4px;
+}
+.study-add-nuance-btn {
+  background: transparent;
+  border: 1px dashed var(--gold);
+  color: var(--gold-dark);
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all 0.15s;
+}
+.study-add-nuance-btn:hover {
+  background: var(--gold-soft);
+  border-style: solid;
+  color: var(--ink-dark);
 }
 
 /* Studies picker inside lesson modal */

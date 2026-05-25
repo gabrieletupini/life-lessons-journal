@@ -2,6 +2,7 @@ import {
   initFirebase, onSyncStatus, onAuthReady, loginWithGoogle,
   subscribeToPillars, createPillar, updatePillar, deletePillar,
   subscribeToLessons, createLesson, updateLesson, deleteLesson,
+  subscribeToStudyNuances, createStudyNuance, updateStudyNuance, deleteStudyNuance,
   seedDefaultPillars, exportAll, importAll,
 } from './firebase.js';
 import { STUDIES } from './studies.js';
@@ -43,6 +44,8 @@ const PALETTE = [
 // ===== State =====
 let pillars = [];
 let lessons = [];
+let studyNuances = [];
+let expandedStudies = new Set(); // study ids whose addendum panel is open
 let currentPillarId = null;
 let currentSort = 'date-desc';
 let currentLessonSearch = '';
@@ -130,11 +133,17 @@ function startApp() {
     if (currentGlobalSearch) renderGlobalSearch();
   });
 
+  subscribeToStudyNuances((n) => {
+    studyNuances = n;
+    if (currentPillarId) renderPillarDetail();
+  });
+
   setupNav();
   setupPillarModal();
   setupManageModal();
   setupLessonModal();
   setupLessonViewModal();
+  setupStudyNuanceModal();
   setupExportModal();
   setupSearch();
   setupKeyboard();
@@ -269,6 +278,12 @@ function renderLinkedStudies(lesson) {
   `;
 }
 
+function nuancesForStudy(studyId) {
+  return studyNuances
+    .filter(n => n.studyId === studyId)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
 function renderPillarStudies(pillar) {
   const container = document.getElementById('pillar-studies');
   if (!container) return;
@@ -281,21 +296,69 @@ function renderPillarStudies(pillar) {
   container.classList.remove('hidden');
   const cards = items.map(s => {
     const fname = s.file.split('/').pop();
+    const ns = nuancesForStudy(s.id);
+    const isOpen = expandedStudies.has(s.id);
+    const addendumBtnLabel = ns.length ? `▾ Addendums (${ns.length})` : '+ Addendum';
+    const panelHtml = isOpen ? renderStudyAddendumsPanel(s, ns) : '';
     return `
-      <div class="study-card">
-        <div class="study-card-info">
-          <div class="study-card-title">${escapeHtml(s.title)}</div>
-          <div class="study-card-excerpt">${escapeHtml(s.excerpt)}</div>
-          <div class="study-card-meta">${s.readingMinutes} min · ${escapeHtml(s.publishedAt || '')}</div>
+      <div class="study-card${isOpen ? ' is-open' : ''}" data-study-id="${escapeHtml(s.id)}">
+        <div class="study-card-row">
+          <div class="study-card-info">
+            <div class="study-card-title">${escapeHtml(s.title)}</div>
+            <div class="study-card-excerpt">${escapeHtml(s.excerpt)}</div>
+            <div class="study-card-meta">${s.readingMinutes} min · ${escapeHtml(s.publishedAt || '')}</div>
+          </div>
+          <div class="study-card-actions">
+            <a class="study-btn study-btn-view" href="${s.file}" target="_blank" rel="noopener">View →</a>
+            <a class="study-btn study-btn-download" href="${s.file}" download="${fname}">⬇ Download</a>
+            <button type="button" class="study-btn study-btn-addendum" data-study-id="${escapeHtml(s.id)}">${escapeHtml(addendumBtnLabel)}</button>
+          </div>
         </div>
-        <div class="study-card-actions">
-          <a class="study-btn study-btn-view" href="${s.file}" target="_blank" rel="noopener">View →</a>
-          <a class="study-btn study-btn-download" href="${s.file}" download="${fname}">⬇ Download</a>
-        </div>
+        ${panelHtml}
       </div>
     `;
   }).join('');
   container.innerHTML = `<div class="pillar-studies-title">Studies for this pillar</div>${cards}`;
+
+  // Wire toggle buttons
+  container.querySelectorAll('.study-btn-addendum').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.studyId;
+      if (expandedStudies.has(id)) expandedStudies.delete(id);
+      else expandedStudies.add(id);
+      renderPillarStudies(pillar);
+    });
+  });
+  container.querySelectorAll('[data-action="add-nuance"]').forEach(btn => {
+    btn.addEventListener('click', () => openStudyNuanceModal(btn.dataset.studyId, null));
+  });
+  container.querySelectorAll('[data-action="edit-nuance"]').forEach(btn => {
+    btn.addEventListener('click', () => openStudyNuanceModal(btn.dataset.studyId, btn.dataset.nuanceId));
+  });
+}
+
+function renderStudyAddendumsPanel(study, ns) {
+  const items = ns.length
+    ? ns.map((n, i) => `
+        <div class="study-nuance">
+          <div class="study-nuance-head">
+            <span class="study-nuance-num">№ ${i + 1}</span>
+            <span class="study-nuance-title">${escapeHtml(n.title || '')}</span>
+            <button type="button" class="study-nuance-edit" data-action="edit-nuance"
+                    data-study-id="${escapeHtml(study.id)}" data-nuance-id="${escapeHtml(n.id)}"
+                    title="Edit">✎</button>
+          </div>
+          ${n.text ? `<div class="study-nuance-text">${escapeHtml(n.text)}</div>` : ''}
+        </div>
+      `).join('')
+    : '<div class="study-nuance-empty">No addendums yet. Add one to start collecting variations on this study.</div>';
+  return `
+    <div class="study-addendums-panel">
+      ${items}
+      <button type="button" class="study-add-nuance-btn" data-action="add-nuance" data-study-id="${escapeHtml(study.id)}">+ Add addendum</button>
+    </div>
+  `;
 }
 
 function renderPillarDetail() {
@@ -921,6 +984,53 @@ function renderLessonNuances(lesson) {
 }
 
 // ===== Export / Import =====
+// ===== Study addendum modal =====
+function setupStudyNuanceModal() {
+  $('sn-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = $('sn-id').value;
+    const studyId = $('sn-study-id').value;
+    const title = $('sn-title').value.trim();
+    const text = $('sn-text').value.trim();
+    if (!title || !studyId) return;
+    if (id) {
+      await updateStudyNuance(id, { title, text });
+      showToast('Addendum updated');
+    } else {
+      const order = nuancesForStudy(studyId).length;
+      await createStudyNuance({ studyId, title, text, order });
+      showToast('Addendum added');
+    }
+    closeModal('study-nuance-modal');
+  });
+  $('sn-delete-btn').addEventListener('click', async () => {
+    const id = $('sn-id').value;
+    if (!id) return;
+    if (!confirm('Delete this addendum?')) return;
+    await deleteStudyNuance(id);
+    closeModal('study-nuance-modal');
+    showToast('Addendum deleted');
+  });
+}
+
+function openStudyNuanceModal(studyId, nuanceId) {
+  const study = STUDIES.find(s => s.id === studyId);
+  const nuance = nuanceId ? studyNuances.find(n => n.id === nuanceId) : null;
+  $('sn-modal-title').textContent = nuance ? 'Edit addendum' : 'Add addendum';
+  $('sn-modal-sub').textContent = study
+    ? `Attached to: ${study.title}`
+    : 'Variations on the study\'s central idea.';
+  $('sn-id').value = nuance ? nuance.id : '';
+  $('sn-study-id').value = studyId;
+  $('sn-title').value = nuance ? (nuance.title || '') : '';
+  $('sn-text').value = nuance ? (nuance.text || '') : '';
+  $('sn-delete-btn').classList.toggle('hidden', !nuance);
+  // Make sure the panel is open so the user sees the result on save
+  expandedStudies.add(studyId);
+  openModal('study-nuance-modal');
+  setTimeout(() => $('sn-title').focus(), 50);
+}
+
 function setupExportModal() {
   $('export-btn').addEventListener('click', async () => {
     const log = $('export-log');

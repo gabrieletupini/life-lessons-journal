@@ -212,6 +212,25 @@
   </div>
 </div>
 
+<!-- Study addendum edit -->
+<div id="study-nuance-modal" class="modal" data-modal="study-nuance-modal">
+  <div class="modal-content">
+    <button class="modal-close" data-close>×</button>
+    <h3 id="sn-modal-title">Add addendum</h3>
+    <p class="modal-sub" id="sn-modal-sub">Variations on the study's central idea.</p>
+    <form id="sn-form" class="form">
+      <input type="hidden" id="sn-id">
+      <input type="hidden" id="sn-study-id">
+      <label>Title <span class="hint">(short — the variation in a phrase)</span><input type="text" id="sn-title" maxlength="100" required></label>
+      <label>Text <span class="hint">(the addendum body)</span><textarea id="sn-text" rows="6" required></textarea></label>
+      <div class="form-actions">
+        <button type="button" id="sn-delete-btn" class="btn-danger hidden">Delete</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 

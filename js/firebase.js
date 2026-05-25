@@ -152,6 +152,52 @@ export async function deleteLesson(id) {
   emitStatus('synced');
 }
 
+// ===== Study addendums =====
+// Flat collection of addendums attached to studies (which are static HTML in
+// /studies/). Each doc has { studyId, title, text, order } plus timestamps.
+// The studyId is the catalog id from js/studies.js (e.g. 'pickup-soft-hard-limit').
+
+export function subscribeToStudyNuances(callback) {
+  emitStatus('connecting');
+  return onSnapshot(
+    query(collection(db, 'study_nuances'), orderBy('order', 'asc')),
+    (snap) => {
+      emitStatus('synced');
+      callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    },
+    (err) => {
+      console.error('subscribeToStudyNuances error:', err);
+      emitStatus('error');
+    }
+  );
+}
+
+export async function createStudyNuance(data) {
+  emitStatus('syncing');
+  const ref = await addDoc(collection(db, 'study_nuances'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  emitStatus('synced');
+  return ref.id;
+}
+
+export async function updateStudyNuance(id, data) {
+  emitStatus('syncing');
+  await updateDoc(doc(db, 'study_nuances', id), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+  emitStatus('synced');
+}
+
+export async function deleteStudyNuance(id) {
+  emitStatus('syncing');
+  await deleteDoc(doc(db, 'study_nuances', id));
+  emitStatus('synced');
+}
+
 // ===== Bulk operations =====
 export async function seedDefaultPillars(defaults) {
   emitStatus('syncing');
@@ -169,9 +215,10 @@ export async function seedDefaultPillars(defaults) {
 }
 
 export async function exportAll() {
-  const [pillarsSnap, lessonsSnap] = await Promise.all([
+  const [pillarsSnap, lessonsSnap, studyNuancesSnap] = await Promise.all([
     getDocs(collection(db, 'pillars')),
     getDocs(collection(db, 'lessons')),
+    getDocs(collection(db, 'study_nuances')),
   ]);
   const strip = (data) => {
     const out = { ...data };
@@ -183,16 +230,18 @@ export async function exportAll() {
     exportedAt: new Date().toISOString(),
     pillars: pillarsSnap.docs.map(d => ({ id: d.id, ...strip(d.data()) })),
     lessons: lessonsSnap.docs.map(d => ({ id: d.id, ...strip(d.data()) })),
+    studyNuances: studyNuancesSnap.docs.map(d => ({ id: d.id, ...strip(d.data()) })),
   };
 }
 
-// Replace-all import: wipes existing pillars + lessons, then writes the payload.
-// Preserves original ids when possible by re-using doc(id) refs.
+// Replace-all import: wipes existing pillars + lessons + study_nuances,
+// then writes the payload. Preserves original ids when possible.
 export async function importAll(payload) {
   emitStatus('syncing');
-  const [pillarsSnap, lessonsSnap] = await Promise.all([
+  const [pillarsSnap, lessonsSnap, studyNuancesSnap] = await Promise.all([
     getDocs(collection(db, 'pillars')),
     getDocs(collection(db, 'lessons')),
+    getDocs(collection(db, 'study_nuances')),
   ]);
 
   // Wipe in chunks (batch max 500)
@@ -210,6 +259,7 @@ export async function importAll(payload) {
   };
   pillarsSnap.docs.forEach(d => enqueueDelete(d.ref));
   lessonsSnap.docs.forEach(d => enqueueDelete(d.ref));
+  studyNuancesSnap.docs.forEach(d => enqueueDelete(d.ref));
   if (count > 0) wipeBatches.push(batch.commit());
   await Promise.all(wipeBatches);
 
@@ -240,6 +290,11 @@ export async function importAll(payload) {
     const ref = id ? doc(db, 'lessons', id) : doc(collection(db, 'lessons'));
     enqueueWrite(ref, rest);
   });
+  (payload.studyNuances || []).forEach(n => {
+    const { id, ...rest } = n;
+    const ref = id ? doc(db, 'study_nuances', id) : doc(collection(db, 'study_nuances'));
+    enqueueWrite(ref, rest);
+  });
   if (count > 0) writeBatches.push(batch.commit());
   await Promise.all(writeBatches);
 
@@ -247,5 +302,6 @@ export async function importAll(payload) {
   return {
     pillars: (payload.pillars || []).length,
     lessons: (payload.lessons || []).length,
+    studyNuances: (payload.studyNuances || []).length,
   };
 }
