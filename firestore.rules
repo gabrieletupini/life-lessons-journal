@@ -20,6 +20,10 @@ service cloud.firestore {
       allow read, write: if isAuthorized();
     }
 
+    match /study_nuances/{nuanceId} {
+      allow read, write: if isAuthorized();
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;
