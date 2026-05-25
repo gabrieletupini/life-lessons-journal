@@ -1074,6 +1074,289 @@ body {
 }
 .export-log.show { display: block; }
 
+/* ===== Month groups in pillar detail ===== */
+.month-group {
+  margin-bottom: 32px;
+}
+.month-group:last-child { margin-bottom: 0; }
+
+.month-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.month-header::before {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 64px;
+  height: 2px;
+  background: var(--gold);
+}
+.month-header::after {
+  content: '✦';
+  color: var(--gold);
+  opacity: 0.55;
+  font-size: 11px;
+  position: absolute;
+  bottom: -7px;
+  left: 72px;
+  background: var(--bg-parchment);
+  padding: 0 6px;
+}
+
+.month-label {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--ink-dark);
+}
+.month-label .month-year {
+  color: var(--ink-soft);
+  font-weight: 500;
+  margin-left: 6px;
+}
+
+.month-count {
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+}
+
+.month-lessons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ===== Nuances editor (lesson modal) ===== */
+.nuances-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  margin-top: 2px;
+}
+.nuances-editor:empty { display: none; }
+
+.nuance-row {
+  background: var(--bg-parchment);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.nuance-row:focus-within {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-soft);
+}
+
+.nuance-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nuance-num {
+  font-family: var(--display);
+  font-size: 12px;
+  color: var(--gold-dark);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  min-width: 36px;
+}
+
+.form .nuance-row input.nuance-title {
+  flex: 1;
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  padding: 4px 0;
+  color: var(--ink-dark);
+  border-radius: 0;
+  letter-spacing: 0.02em;
+}
+.form .nuance-row input.nuance-title:focus {
+  outline: none;
+  border-bottom-color: var(--gold);
+  background: transparent;
+}
+
+.form .nuance-row textarea.nuance-text {
+  font-family: var(--serif);
+  font-size: 15px;
+  background: transparent;
+  border: none;
+  resize: vertical;
+  min-height: 54px;
+  padding: 2px 0 2px 46px;
+  color: var(--ink);
+  line-height: 1.6;
+  letter-spacing: 0;
+  background-image: none;
+  border-radius: 0;
+  font-weight: 400;
+}
+.form .nuance-row textarea.nuance-text:focus {
+  outline: none;
+}
+.form .nuance-row textarea.nuance-text::placeholder {
+  color: var(--ink-muted);
+  font-style: italic;
+}
+
+.nuance-remove {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 2px;
+  transition: all 0.15s;
+  font-family: var(--serif);
+}
+.nuance-remove:hover {
+  color: var(--red-aged);
+  background: rgba(139, 58, 58, 0.08);
+}
+
+.nuances-add-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--ink-medium);
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: none;
+  font-weight: 400;
+}
+.nuances-add-btn:hover {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+  color: var(--ink-dark);
+  border-style: solid;
+}
+
+/* ===== Nuances in lesson view modal ===== */
+.lv-nuances {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px dashed var(--border);
+}
+
+.lv-nuances-title {
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--gold-dark);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+.lv-nuances-title::before,
+.lv-nuances-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.55;
+}
+
+.lv-nuance {
+  background: var(--bg-parchment);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 14px 18px 14px 20px;
+  margin-bottom: 12px;
+  position: relative;
+}
+.lv-nuance:last-child { margin-bottom: 0; }
+
+.lv-nuance-num {
+  position: absolute;
+  top: -9px;
+  left: 14px;
+  background: var(--bg-card);
+  color: var(--gold-dark);
+  font-family: var(--display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.lv-nuance-title {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-dark);
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+
+.lv-nuance-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Badge on lesson card */
+.lesson-card-nuances {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ink-medium);
+  background: var(--bg-parchment);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.lesson-card-nuances::before {
+  content: '◦';
+  margin-right: 4px;
+  color: var(--gold-dark);
+  font-weight: 700;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   body { padding: 20px 16px; }
@@ -1089,4 +1372,6 @@ body {
   .modal-content { padding: 24px 22px; }
   .color-picker { grid-template-columns: repeat(8, 1fr); }
   .form-row { flex-direction: column; }
+  .month-label { font-size: 19px; }
+  .form .nuance-row textarea.nuance-text { padding-left: 0; }
 }

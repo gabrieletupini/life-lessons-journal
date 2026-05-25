@@ -155,6 +155,10 @@
       </label>
       <label>Tags <span class="hint">(comma-separated)</span><input type="text" id="lesson-tags" placeholder="wisdom, growth, …"></label>
       <div id="tag-suggestions" class="tag-suggestions"></div>
+      <label>Nuances &amp; Addendums <span class="hint">(variations on the same fundamental idea)</span>
+        <div id="lesson-nuances-editor" class="nuances-editor"></div>
+        <button type="button" id="add-nuance-btn" class="nuances-add-btn">+ Add nuance</button>
+      </label>
       <label id="lesson-studies-label" class="hidden">Linked studies <span class="hint">(toggle to link)</span>
         <div id="lesson-studies-picker" class="studies-picker"></div>
       </label>
@@ -181,6 +185,7 @@
       <div id="lv-tags" class="lesson-view-tags"></div>
       <div class="divider-line"></div>
       <div id="lv-description" class="lesson-view-body"></div>
+      <div id="lv-nuances" class="lv-nuances hidden"></div>
       <div id="lv-studies" class="lv-studies hidden"></div>
     </div>
     <div class="form-actions">

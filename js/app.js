@@ -326,9 +326,63 @@ function renderPillarDetail() {
   }
   lessonsEmpty.classList.add('hidden');
 
-  items.forEach(l => {
-    lessonsList.appendChild(buildLessonCard(l, p));
+  const groupByMonth = currentSort === 'date-desc' || currentSort === 'date-asc';
+  if (groupByMonth) {
+    const groups = groupLessonsByMonth(items, currentSort === 'date-desc');
+    groups.forEach(g => {
+      lessonsList.appendChild(buildMonthGroup(g, p));
+    });
+  } else {
+    items.forEach(l => {
+      lessonsList.appendChild(buildLessonCard(l, p));
+    });
+  }
+}
+
+function groupLessonsByMonth(items, desc) {
+  const groups = new Map();
+  for (const l of items) {
+    const ts = dateValue(l);
+    let key, year, monthLabel;
+    if (!ts) {
+      key = 'undated';
+      year = '';
+      monthLabel = 'Undated';
+    } else {
+      const d = new Date(ts);
+      key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+      year = String(d.getFullYear());
+      monthLabel = d.toLocaleDateString(undefined, { month: 'long' });
+    }
+    if (!groups.has(key)) groups.set(key, { key, year, monthLabel, lessons: [] });
+    groups.get(key).lessons.push(l);
+  }
+  const arr = [...groups.values()];
+  arr.sort((a, b) => {
+    if (a.key === 'undated') return 1;
+    if (b.key === 'undated') return -1;
+    return desc ? b.key.localeCompare(a.key) : a.key.localeCompare(b.key);
   });
+  return arr;
+}
+
+function buildMonthGroup(group, pillar) {
+  const wrap = document.createElement('div');
+  wrap.className = 'month-group';
+  const count = group.lessons.length;
+  const yearHtml = group.year ? `<span class="month-year">${escapeHtml(group.year)}</span>` : '';
+  const head = document.createElement('div');
+  head.className = 'month-header';
+  head.innerHTML = `
+    <div class="month-label">${escapeHtml(group.monthLabel)}${yearHtml}</div>
+    <div class="month-count">${count} ${count === 1 ? 'lesson' : 'lessons'}</div>
+  `;
+  wrap.appendChild(head);
+  const list = document.createElement('div');
+  list.className = 'month-lessons';
+  group.lessons.forEach(l => list.appendChild(buildLessonCard(l, pillar)));
+  wrap.appendChild(list);
+  return wrap;
 }
 
 function buildLessonCard(lesson, pillar) {
@@ -346,6 +400,10 @@ function buildLessonCard(lesson, pillar) {
   const studiesHtml = linkedStudies.length
     ? `<span class="lesson-card-studies" title="${linkedStudies.map(s => s.title).join(' · ')}">📎 ${linkedStudies.length === 1 ? linkedStudies[0].title : linkedStudies.length + ' studies'}</span>`
     : '';
+  const nuancesCount = (lesson.nuances || []).filter(n => n && (n.title || n.text)).length;
+  const nuancesHtml = nuancesCount
+    ? `<span class="lesson-card-nuances" title="${nuancesCount} ${nuancesCount === 1 ? 'addendum' : 'addendums'}">${nuancesCount === 1 ? '1 nuance' : nuancesCount + ' nuances'}</span>`
+    : '';
   card.innerHTML = `
     <div class="lesson-card-head">
       <h3 class="lesson-card-title">${escapeHtml(lesson.title)}</h3>
@@ -356,6 +414,7 @@ function buildLessonCard(lesson, pillar) {
       ${pillar ? `<span class="lesson-card-pillar" style="background:${hexToSoft(pillar.color)};color:${pillar.color}">${escapeHtml(pillar.name)}</span>` : ''}
       <span>${dateStr}</span>
       ${tagsHtml}
+      ${nuancesHtml}
       ${studiesHtml}
     </div>
   `;
@@ -579,6 +638,13 @@ function setupLessonModal() {
     updateTagSuggestions();
   });
 
+  $('add-nuance-btn').addEventListener('click', () => {
+    const editor = $('lesson-nuances-editor');
+    editor.appendChild(buildNuanceRow({}, editor.querySelectorAll('.nuance-row').length));
+    const last = editor.querySelector('.nuance-row:last-child input.nuance-title');
+    if (last) last.focus();
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('lesson-id').value;
@@ -591,6 +657,7 @@ function setupLessonModal() {
     if (!title || !pillarId) return;
 
     const studyIds = [...document.querySelectorAll('#lesson-studies-picker input:checked')].map(cb => cb.value);
+    const nuances = collectNuances();
 
     const data = {
       title,
@@ -600,6 +667,7 @@ function setupLessonModal() {
       importance: editingStars,
       tags: tagsRaw.split(',').map(t => t.trim()).filter(Boolean),
       studyIds,
+      nuances,
     };
     if (id) {
       await updateLesson(id, data);
@@ -683,6 +751,7 @@ function openLessonModal(lesson) {
   editingStudyIds = lesson && lesson.studyIds ? [...lesson.studyIds] : [];
   updateTagSuggestions();
   refreshStudiesPicker();
+  renderNuancesEditor(lesson ? lesson.nuances || [] : []);
   openModal('lesson-modal');
   setTimeout(() => $('lesson-title').focus(), 50);
 }
@@ -728,6 +797,51 @@ function refreshStars() {
   $('lesson-stars').dataset.val = editingStars;
 }
 
+// ===== Nuances editor =====
+function renderNuancesEditor(nuances) {
+  const editor = document.getElementById('lesson-nuances-editor');
+  if (!editor) return;
+  editor.innerHTML = '';
+  (nuances || []).forEach((n, i) => editor.appendChild(buildNuanceRow(n, i)));
+}
+
+function buildNuanceRow(nuance, index) {
+  const row = document.createElement('div');
+  row.className = 'nuance-row';
+  row.innerHTML = `
+    <div class="nuance-row-head">
+      <span class="nuance-num">№ ${(index || 0) + 1}</span>
+      <input type="text" class="nuance-title" placeholder="Title — e.g. edge case, variation, caveat" value="${escapeHtml(nuance && nuance.title || '')}">
+      <button type="button" class="nuance-remove" title="Remove">×</button>
+    </div>
+    <textarea class="nuance-text" placeholder="What changes — the variation, the addendum, the subtlety…">${escapeHtml(nuance && nuance.text || '')}</textarea>
+  `;
+  row.querySelector('.nuance-remove').addEventListener('click', () => {
+    row.remove();
+    renumberNuances();
+  });
+  return row;
+}
+
+function renumberNuances() {
+  document.querySelectorAll('#lesson-nuances-editor .nuance-row').forEach((row, i) => {
+    const numEl = row.querySelector('.nuance-num');
+    if (numEl) numEl.textContent = `№ ${i + 1}`;
+  });
+}
+
+function collectNuances() {
+  const rows = document.querySelectorAll('#lesson-nuances-editor .nuance-row');
+  const out = [];
+  rows.forEach(row => {
+    const title = (row.querySelector('.nuance-title')?.value || '').trim();
+    const text = (row.querySelector('.nuance-text')?.value || '').trim();
+    if (!title && !text) return;
+    out.push({ title, text });
+  });
+  return out;
+}
+
 // ===== Lesson view modal =====
 function setupLessonViewModal() {
   $('lv-edit-btn').addEventListener('click', () => {
@@ -766,8 +880,31 @@ function openLessonView(lesson) {
   const tagsEl = $('lv-tags');
   tagsEl.innerHTML = (lesson.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('');
   $('lv-description').innerHTML = sanitizeRichHtml(lesson.description || '');
+  renderLessonNuances(lesson);
   renderLinkedStudies(lesson);
   openModal('lesson-view-modal');
+}
+
+function renderLessonNuances(lesson) {
+  const el = document.getElementById('lv-nuances');
+  if (!el) return;
+  const list = (lesson.nuances || []).filter(n => n && (n.title || n.text));
+  if (list.length === 0) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="lv-nuances-title">Nuances &amp; Addendums</div>
+    ${list.map((n, i) => `
+      <div class="lv-nuance">
+        <span class="lv-nuance-num">№ ${i + 1}</span>
+        ${n.title ? `<div class="lv-nuance-title">${escapeHtml(n.title)}</div>` : ''}
+        ${n.text ? `<div class="lv-nuance-text">${escapeHtml(n.text)}</div>` : ''}
+      </div>
+    `).join('')}
+  `;
 }
 
 // ===== Export / Import =====
