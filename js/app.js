@@ -6,6 +6,7 @@ import {
   seedDefaultPillars, exportAll, importAll,
 } from './firebase.js';
 import { STUDIES } from './studies.js';
+import { SEED_ADDENDUMS } from './seed-addendums.js';
 
 // ===== Defaults =====
 const DEFAULT_PILLARS = [
@@ -46,6 +47,9 @@ let pillars = [];
 let lessons = [];
 let studyNuances = [];
 let expandedStudies = new Set(); // study ids whose addendum panel is open
+let pendingNuanceBody = '';      // raw HTML staged for the current addendum modal
+let pendingNuanceFileName = '';  // filename of the most recently dropped HTML
+let seedAttempted = false;       // run the addendum seeder only once per session
 let currentPillarId = null;
 let currentSort = 'date-desc';
 let currentLessonSearch = '';
@@ -136,6 +140,10 @@ function startApp() {
   subscribeToStudyNuances((n) => {
     studyNuances = n;
     if (currentPillarId) renderPillarDetail();
+    if (!seedAttempted) {
+      seedAttempted = true;
+      maybeSeedAddendums();
+    }
   });
 
   setupNav();
@@ -341,11 +349,13 @@ function renderPillarStudies(pillar) {
 function renderStudyAddendumsPanel(study, ns) {
   const items = ns.length
     ? ns.map((n, i) => {
-        // Prefer the new HTML 'body' field; fall back to legacy 'text' (which
-        // was plain text on older docs — render as a paragraph for those).
-        let html = '';
-        if (n.body) html = sanitizeAddendumHtml(n.body);
-        else if (n.text) html = `<p>${escapeHtml(n.text)}</p>`;
+        const raw = n.body || n.text || '';
+        // Wrap fragments in a minimal doc shell so legacy plain-text addendums
+        // still render. Full-doc HTML is left untouched so its <head>/<style>
+        // applies inside the iframe.
+        const looksLikeDoc = /^\s*<(?:!doctype|html)/i.test(raw);
+        const docHtml = looksLikeDoc ? raw : `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:'Crimson Text',Georgia,serif;color:#3e2723;background:#f4ede1;padding:18px;line-height:1.7;margin:0}h1,h2,h3,h4{font-family:'Cormorant Garamond',serif;font-weight:600;letter-spacing:0.02em}blockquote{font-style:italic;border-left:2px solid #d4af37;padding-left:14px;margin:10px 0;color:#3e2723}a{color:#a8801f}</style></head><body>${escapeHtml(raw)}</body></html>`;
+        const srcdoc = String(docHtml).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         const descHtml = n.description
           ? `<div class="study-nuance-desc">${escapeHtml(n.description)}</div>`
           : '';
@@ -359,7 +369,7 @@ function renderStudyAddendumsPanel(study, ns) {
                       title="Edit">✎</button>
             </div>
             ${descHtml}
-            ${html ? `<div class="study-nuance-body">${html}</div>` : ''}
+            <iframe class="study-nuance-iframe" sandbox srcdoc="${srcdoc}" loading="lazy" title="Addendum ${i + 1}"></iframe>
           </div>
         `;
       }).join('')
@@ -997,15 +1007,39 @@ function renderLessonNuances(lesson) {
 // ===== Export / Import =====
 // ===== Study addendum modal =====
 function setupStudyNuanceModal() {
+  // Drag-and-drop / click-to-browse HTML import
+  const drop = $('sn-html-drop');
+  const fileInput = $('sn-html-file');
+  drop.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    drop.classList.add('drag-over');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('drag-over');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) importHtmlIntoAddendum(file);
+  });
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) importHtmlIntoAddendum(file);
+    fileInput.value = '';
+  });
+
   $('sn-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('sn-id').value;
     const studyId = $('sn-study-id').value;
     const title = $('sn-title').value.trim();
     const description = $('sn-description').value.trim();
-    const html = sanitizeAddendumHtml($('sn-body').value);
     if (!title || !studyId) return;
-    const data = { title, description, body: html };
+    if (!pendingNuanceBody) {
+      showToast('Drop an .html file before saving.', 'error');
+      return;
+    }
+    const data = { title, description, body: pendingNuanceBody };
     if (id) {
       await updateStudyNuance(id, data);
       showToast('Addendum updated');
@@ -1038,42 +1072,103 @@ function openStudyNuanceModal(studyId, nuanceId) {
   $('sn-study-id').value = studyId;
   $('sn-title').value = nuance ? (nuance.title || '') : '';
   $('sn-description').value = nuance ? (nuance.description || '') : '';
-  $('sn-body').value = nuance ? (nuance.body || nuance.text || '') : '';
+  pendingNuanceBody = nuance ? (nuance.body || nuance.text || '') : '';
+  pendingNuanceFileName = '';
+  updateHtmlStatus();
   $('sn-delete-btn').classList.toggle('hidden', !nuance);
-  // Make sure the panel is open so the user sees the result on save
   expandedStudies.add(studyId);
   openModal('study-nuance-modal');
   setTimeout(() => $('sn-title').focus(), 50);
 }
 
-// Permissive sanitizer for addendum bodies. Keeps headings, lists, paragraphs,
-// blockquote, line breaks, and links — strips scripts/styles/attrs except a
-// short whitelist on <a>.
-const ADDENDUM_ALLOWED_TAGS = new Set([
-  'P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U',
-  'H2', 'H3', 'H4', 'BLOCKQUOTE',
-  'UL', 'OL', 'LI', 'DIV', 'SPAN', 'A',
-]);
-function sanitizeAddendumHtml(html) {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html || '';
-  tmp.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach(el => el.remove());
-  tmp.querySelectorAll('*').forEach(el => {
-    if (!ADDENDUM_ALLOWED_TAGS.has(el.tagName)) {
-      el.replaceWith(...el.childNodes);
-      return;
+async function importHtmlIntoAddendum(file) {
+  if (!/\.html?$/i.test(file.name) && file.type !== 'text/html') {
+    showToast('Drop an .html file', 'error');
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('HTML file too large (max 2 MB)', 'error');
+    return;
+  }
+  try {
+    const text = await file.text();
+    pendingNuanceBody = stripScripts(text);
+    pendingNuanceFileName = file.name;
+
+    // Auto-fill title from <title> / <h1>/<h2> when empty
+    const titleEl = $('sn-title');
+    if (!titleEl.value.trim()) {
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+      const t = (doc.title || doc.querySelector('h1, h2, h3')?.textContent || '').trim();
+      if (t) titleEl.value = t.slice(0, 120);
     }
-    [...el.attributes].forEach(a => {
-      if (el.tagName === 'A' && (a.name === 'href' || a.name === 'target' || a.name === 'rel')) return;
-      el.removeAttribute(a.name);
-    });
-    // Force safe target on anchors
-    if (el.tagName === 'A' && el.getAttribute('href')) {
-      el.setAttribute('target', '_blank');
-      el.setAttribute('rel', 'noopener noreferrer');
+    updateHtmlStatus();
+    showToast(`Loaded ${file.name}`);
+  } catch (err) {
+    console.error(err);
+    showToast('Could not read file: ' + (err.message || err), 'error');
+  }
+}
+
+function updateHtmlStatus() {
+  const el = $('sn-html-status');
+  if (!pendingNuanceBody) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.remove('hidden');
+  const sizeKb = (pendingNuanceBody.length / 1024).toFixed(1);
+  const label = pendingNuanceFileName
+    ? `<strong>${escapeHtml(pendingNuanceFileName)}</strong>`
+    : '<strong>Current saved body</strong>';
+  el.innerHTML = `✓ ${label} · ${sizeKb} KB ready · <span class="sn-html-hint">drop another file to replace</span>`;
+}
+
+// Remove only <script> blocks. The iframe sandbox handles the rest of the
+// isolation when rendering.
+function stripScripts(html) {
+  return String(html || '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+}
+
+// ===== Seed addendums (one-shot) =====
+const SEED_IMPORTED_KEY = 'importedSeedAddendums:v1';
+function loadImportedSeedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEED_IMPORTED_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+function saveImportedSeedSet(set) {
+  try { localStorage.setItem(SEED_IMPORTED_KEY, JSON.stringify([...set])); }
+  catch {}
+}
+
+async function maybeSeedAddendums() {
+  const imported = loadImportedSeedSet();
+  let created = 0;
+  for (const seed of SEED_ADDENDUMS) {
+    if (imported.has(seed.seedId)) continue;
+    const existing = studyNuances.find(n => n.seedId === seed.seedId);
+    if (existing) { imported.add(seed.seedId); continue; }
+    try {
+      const r = await fetch(seed.file);
+      if (!r.ok) { console.warn('Seed fetch failed:', seed.file, r.status); continue; }
+      const body = stripScripts(await r.text());
+      await createStudyNuance({
+        seedId: seed.seedId,
+        studyId: seed.studyId,
+        title: seed.title,
+        description: seed.description || '',
+        body,
+        order: seed.order ?? 0,
+      });
+      imported.add(seed.seedId);
+      created++;
+    } catch (err) {
+      console.warn('Seed addendum failed:', seed.seedId, err);
     }
-  });
-  return tmp.innerHTML;
+  }
+  saveImportedSeedSet(imported);
+  if (created > 0) showToast(`Imported ${created} starter addendum${created === 1 ? '' : 's'}`);
 }
 
 function setupExportModal() {

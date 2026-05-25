@@ -1121,27 +1121,68 @@ body {
 }
 .study-nuance-body a:hover { border-color: var(--gold-dark); }
 
-/* Plain HTML textarea in the addendum modal */
-.html-textarea {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--ink-dark);
-  background: var(--bg-parchment);
-  border: 1px solid var(--border);
+/* Drop zone for the addendum modal */
+.html-drop-zone {
+  border: 1.5px dashed var(--border-strong);
   border-radius: var(--radius);
-  padding: 14px 16px;
-  min-height: 280px;
-  resize: vertical;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.2s;
+  padding: 22px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  background: var(--bg-parchment);
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
-  white-space: pre-wrap;
 }
-.html-textarea:focus { border-color: var(--gold); }
+.html-drop-zone:hover,
+.html-drop-zone.drag-over {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+.html-drop-prompt {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.html-drop-prompt strong { color: var(--gold-dark); font-weight: 600; }
+.html-drop-icon {
+  font-family: var(--display);
+  font-size: 20px;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.sn-html-status {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  font-size: 13px;
+  color: var(--ink-dark);
+  font-family: var(--serif);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.sn-html-hint { color: var(--ink-soft); font-style: italic; }
+
+/* Iframe rendering of the addendum body inside the panel */
+.study-nuance-iframe {
+  width: 100%;
+  height: 720px;
+  max-height: 80vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: 10px;
+  background: var(--bg-parchment);
+  display: block;
+}
 
 /* Description line under the addendum title, in the inline panel */
 .study-nuance-desc {
