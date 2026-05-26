@@ -122,6 +122,88 @@ body {
   min-height: 1.2em;
 }
 
+.login-or {
+  text-align: center;
+  font-family: var(--display);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin: 18px 0 12px;
+  letter-spacing: 0.08em;
+  position: relative;
+}
+.login-or::before,
+.login-or::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 28%;
+  height: 1px;
+  background: var(--border);
+}
+.login-or::before { left: 12%; }
+.login-or::after { right: 12%; }
+
+.btn-readonly {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-medium);
+  padding: 10px 22px;
+  font-family: var(--serif);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-readonly:hover {
+  border-color: var(--gold);
+  color: var(--ink-dark);
+  background: var(--gold-soft);
+}
+
+/* Banner shown while in read-only mode */
+.readonly-banner {
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink);
+  margin-bottom: 18px;
+  letter-spacing: 0.03em;
+}
+.readonly-banner a {
+  color: var(--gold-dark);
+  font-weight: 600;
+  border-bottom: 1px solid currentColor;
+  text-decoration: none;
+}
+.readonly-banner a:hover { color: var(--ink-dark); }
+
+/* ===== Read-only mode hides every edit affordance ===== */
+.read-only-only { display: none; }
+body.read-only .read-only-only { display: inline-flex; }
+body.read-only .edit-only,
+body.read-only #add-pillar-btn,
+body.read-only #add-lesson-btn,
+body.read-only #seed-defaults-btn,
+body.read-only #lv-edit-btn,
+body.read-only .study-add-nuance-btn,
+body.read-only .study-btn-edit-nuance,
+body.read-only [data-action="add-nuance"],
+body.read-only [data-action="edit-nuance"] {
+  display: none !important;
+}
+/* Hide the nuance empty-state message ("No addendums yet. Add one…") since
+   it invites editing — leave only existing addendums visible. */
+body.read-only .study-nuance-empty {
+  display: none !important;
+}
+
 /* Decorative ornaments */
 .ornament-top, .ornament-bottom {
   height: 14px;

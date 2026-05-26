@@ -54,6 +54,7 @@ let currentPillarId = null;
 let pillarView = 'calendar';     // 'calendar' | 'catalog'
 let calendarYear = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
+let readOnly = false;            // true when the visitor entered without auth
 let currentSort = 'date-desc';
 let currentLessonSearch = '';
 let currentGlobalSearch = '';
@@ -99,14 +100,22 @@ function init() {
   });
 
   onAuthReady((user) => {
-    if (!user) {
-      loginScreen.classList.remove('hidden');
-      appEl.classList.add('hidden');
+    if (user) {
+      // Auth wins — drop read-only mode if it was on
+      readOnly = false;
+      document.body.classList.remove('read-only');
+      const banner = document.getElementById('readonly-banner');
+      if (banner) banner.classList.add('hidden');
+      loginScreen.classList.add('hidden');
+      appEl.classList.remove('hidden');
+      startApp();
       return;
     }
-    loginScreen.classList.add('hidden');
-    appEl.classList.remove('hidden');
-    startApp();
+    // No user — show login UNLESS we're already in read-only mode
+    if (!readOnly) {
+      loginScreen.classList.remove('hidden');
+      appEl.classList.add('hidden');
+    }
   });
 
   googleBtn.addEventListener('click', async () => {
@@ -118,6 +127,27 @@ function init() {
       loginError.textContent = result.error;
     }
   });
+
+  document.getElementById('readonly-btn').addEventListener('click', enterReadOnly);
+  const signinLink = document.getElementById('signin-link');
+  if (signinLink) signinLink.addEventListener('click', exitReadOnly);
+  const bannerLink = document.getElementById('readonly-banner-signin');
+  if (bannerLink) bannerLink.addEventListener('click', exitReadOnly);
+}
+
+function enterReadOnly() {
+  readOnly = true;
+  document.body.classList.add('read-only');
+  const banner = document.getElementById('readonly-banner');
+  if (banner) banner.classList.remove('hidden');
+  loginScreen.classList.add('hidden');
+  appEl.classList.remove('hidden');
+  startApp();
+}
+
+function exitReadOnly(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  window.location.reload();
 }
 
 let appStarted = false;
@@ -169,6 +199,7 @@ function startApp() {
 async function maybeAutoSeed() {
   if (didSeedAttempt) return;
   didSeedAttempt = true;
+  if (readOnly) return;
   if (pillars.length === 0) {
     await seedDefaultPillars(DEFAULT_PILLARS);
     showToast('Welcome — seeded default pillars');
@@ -890,6 +921,7 @@ function setupPillarModal() {
 }
 
 function openPillarModal(pillar) {
+  if (readOnly) return;
   $('pillar-modal-title').textContent = pillar ? 'Edit Pillar' : 'New Pillar';
   $('pillar-id').value = pillar ? pillar.id : '';
   $('pillar-name').value = pillar ? pillar.name : '';
@@ -910,6 +942,7 @@ function setupManageModal() {
 }
 
 function openManageModal() {
+  if (readOnly) return;
   const list = $('manage-list');
   list.innerHTML = '';
   pillars.forEach(p => {
@@ -1071,6 +1104,7 @@ function updateTagSuggestions() {
 }
 
 function openLessonModal(lesson) {
+  if (readOnly) return;
   $('lesson-modal-title').textContent = lesson ? 'Edit Lesson' : 'New Lesson';
   $('lesson-id').value = lesson ? lesson.id : '';
   $('lesson-title').value = lesson ? lesson.title : '';
@@ -1363,6 +1397,7 @@ function setupStudyNuanceModal() {
 }
 
 function openStudyNuanceModal(studyId, nuanceId) {
+  if (readOnly) return;
   const study = STUDIES.find(s => s.id === studyId);
   const nuance = nuanceId ? studyNuances.find(n => n.id === nuanceId) : null;
   $('sn-modal-title').textContent = nuance ? 'Edit addendum' : 'Add addendum';
@@ -1444,6 +1479,7 @@ function saveImportedSeedSet(set) {
 }
 
 async function maybeSeedAddendums() {
+  if (readOnly) return;
   const imported = loadImportedSeedSet();
   let created = 0;
   for (const seed of SEED_ADDENDUMS) {
