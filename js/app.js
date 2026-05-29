@@ -1,5 +1,5 @@
 import {
-  initFirebase, onSyncStatus, onAuthReady, loginWithGoogle,
+  initFirebase, onSyncStatus, onAuthReady, loginWithGoogle, logout,
   subscribeToPillars, createPillar, updatePillar, deletePillar,
   subscribeToLessons, createLesson, updateLesson, deleteLesson,
   subscribeToStudyNuances, createStudyNuance, updateStudyNuance, deleteStudyNuance,
@@ -133,6 +133,16 @@ function init() {
   if (signinLink) signinLink.addEventListener('click', exitReadOnly);
   const bannerLink = document.getElementById('readonly-banner-signin');
   if (bannerLink) bannerLink.addEventListener('click', exitReadOnly);
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await logout();
+      // After signOut Firebase fires onAuthReady(null); init's handler shows
+      // the login screen. Force a clean refresh so subscriptions tear down too.
+      window.location.reload();
+    });
+  }
 }
 
 function enterReadOnly() {

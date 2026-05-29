@@ -162,6 +162,26 @@ body {
   background: var(--gold-soft);
 }
 
+/* Sign-out button — visible label, not just an icon */
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-medium);
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  height: 38px;
+}
+.btn-logout:hover {
+  border-color: var(--red-aged);
+  color: var(--red-aged);
+  background: rgba(139, 58, 58, 0.08);
+}
+
 /* Banner shown while in read-only mode */
 .readonly-banner {
   background: var(--gold-soft);
