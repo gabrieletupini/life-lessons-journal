@@ -137,9 +137,20 @@ function init() {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      await logout();
-      // After signOut Firebase fires onAuthReady(null); init's handler shows
-      // the login screen. Force a clean refresh so subscriptions tear down too.
+      console.log('Sign out clicked');
+      logoutBtn.disabled = true;
+      const originalLabel = logoutBtn.textContent;
+      logoutBtn.textContent = 'Signing out…';
+      try {
+        await logout();
+        console.log('signOut resolved — reloading');
+      } catch (err) {
+        console.error('signOut failed:', err);
+        showToast('Sign out failed: ' + (err && err.message ? err.message : err), 'error');
+        logoutBtn.disabled = false;
+        logoutBtn.textContent = originalLabel;
+        return;
+      }
       window.location.reload();
     });
   }
