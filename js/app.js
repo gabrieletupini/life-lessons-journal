@@ -10,30 +10,21 @@ import { SEED_ADDENDUMS } from './seed-addendums.js';
 
 // ===== Defaults =====
 const DEFAULT_PILLARS = [
-  { name: 'Relationships',    icon: '\u{1F49E}', color: '#c2185b', order: 0 },
-  { name: 'Pickup',           icon: '\u{1F339}', color: '#7b1fa2', order: 1 },
-  { name: 'Finances',         icon: '\u{1F4B0}', color: '#2e7d32', order: 2 },
-  { name: 'Spiritual',        icon: '\u{1F56F}', color: '#5d4037', order: 3 },
-  { name: 'Health',           icon: '\u{1F33F}', color: '#00695c', order: 4 },
-  { name: 'Career',           icon: '\u{269C}',  color: '#1565c0', order: 5 },
-  { name: 'Personal Growth',  icon: '\u{1F331}', color: '#ef6c00', order: 6 },
-  { name: 'Creativity',       icon: '\u{1F3A8}', color: '#ad1457', order: 7 },
-  { name: 'Family',           icon: '\u{1F3DB}', color: '#6a1b9a', order: 8 },
-  { name: 'Travel',           icon: '\u{2708}',  color: '#00838f', order: 9 },
+  { name: 'Pickup',           icon: '\u{1F339}', color: '#7b1fa2', order: 0 },
+  { name: 'Shadow Work',      icon: '\u{1F311}', color: '#311b92', order: 1 },
 ];
 
 const PILLAR_TAG_SUGGESTIONS = {
-  'Relationships':   ['communication', 'conflict', 'trust', 'boundaries', 'intimacy', 'friendship', 'vulnerability'],
-  'Pickup':          ['confidence', 'approach', 'attraction', 'body-language', 'social-skills', 'frame', 'vibe', 'openers'],
-  'Finances':        ['budget', 'investing', 'savings', 'debt', 'mindset', 'income', 'taxes'],
-  'Spiritual':       ['meditation', 'mindfulness', 'gratitude', 'purpose', 'presence', 'faith'],
-  'Health':          ['fitness', 'nutrition', 'sleep', 'mental-health', 'habits', 'recovery', 'energy'],
-  'Career':          ['leadership', 'productivity', 'networking', 'skills', 'negotiation', 'work-life'],
-  'Personal Growth': ['discipline', 'self-awareness', 'learning', 'mindset', 'reflection', 'identity'],
-  'Creativity':      ['writing', 'art', 'music', 'ideas', 'flow', 'expression'],
-  'Family':          ['parenting', 'marriage', 'traditions', 'support', 'memory'],
-  'Travel':          ['solo', 'adventure', 'planning', 'cultural', 'photography', 'language'],
+  'Pickup':       ['confidence', 'approach', 'attraction', 'body-language', 'social-skills', 'frame', 'vibe', 'openers'],
+  'Shadow Work':  ['trigger', 'anxiety', 'anger', 'fear', 'shame', 'projection', 'essay', 'pattern', 'somatic', 'integration'],
 };
+
+// Legacy pillar names removed in the 2-pillar refactor. Empty ones get
+// auto-deleted on next load; ones with lessons are left alone for the user.
+const LEGACY_PILLAR_NAMES = new Set([
+  'Relationships', 'Finances', 'Spiritual', 'Health', 'Career',
+  'Personal Growth', 'Creativity', 'Family', 'Travel',
+]);
 
 const PALETTE = [
   '#c2185b', '#7b1fa2', '#2e7d32', '#5d4037', '#00695c',
@@ -178,17 +169,21 @@ function startApp() {
 
   subscribeToPillars((p) => {
     pillars = p;
+    pillarsLoaded = true;
     renderPillarsGrid();
     if (currentPillarId) renderPillarDetail();
     if (currentGlobalSearch) renderGlobalSearch();
     maybeAutoSeed();
+    maybeCleanupLegacyPillars();
   });
 
   subscribeToLessons((l) => {
     lessons = l;
+    lessonsLoaded = true;
     renderPillarsGrid();
     if (currentPillarId) renderPillarDetail();
     if (currentGlobalSearch) renderGlobalSearch();
+    maybeCleanupLegacyPillars();
   });
 
   subscribeToStudyNuances((n) => {
@@ -224,6 +219,40 @@ async function maybeAutoSeed() {
   if (pillars.length === 0) {
     await seedDefaultPillars(DEFAULT_PILLARS);
     showToast('Welcome — seeded default pillars');
+  }
+}
+
+let pillarsLoaded = false;
+let lessonsLoaded = false;
+let cleanupAttempted = false;
+async function maybeCleanupLegacyPillars() {
+  if (cleanupAttempted) return;
+  if (readOnly) return;
+  if (!pillarsLoaded || !lessonsLoaded) return;
+  if (localStorage.getItem('legacyPillarsCleanedV1') === '1') {
+    cleanupAttempted = true;
+    return;
+  }
+  cleanupAttempted = true;
+
+  const toRemove = pillars.filter(p =>
+    LEGACY_PILLAR_NAMES.has(p.name) && lessonCount(p.id) === 0
+  );
+
+  if (!toRemove.length) {
+    localStorage.setItem('legacyPillarsCleanedV1', '1');
+    return;
+  }
+
+  try {
+    for (const p of toRemove) {
+      await deletePillar(p.id);
+    }
+    localStorage.setItem('legacyPillarsCleanedV1', '1');
+    showToast(`Cleaned up ${toRemove.length} empty pillar${toRemove.length > 1 ? 's' : ''}`);
+  } catch (err) {
+    console.error('Legacy pillar cleanup failed:', err);
+    cleanupAttempted = false; // allow retry next session
   }
 }
 
