@@ -216,9 +216,21 @@ async function maybeAutoSeed() {
   if (didSeedAttempt) return;
   didSeedAttempt = true;
   if (readOnly) return;
+
   if (pillars.length === 0) {
     await seedDefaultPillars(DEFAULT_PILLARS);
     showToast('Welcome — seeded default pillars');
+    return;
+  }
+
+  // Top-up: add any default pillar that's missing by name
+  const existingNames = new Set(pillars.map(p => p.name));
+  const missing = DEFAULT_PILLARS.filter(d => !existingNames.has(d.name));
+  if (missing.length) {
+    const nextOrder = Math.max(...pillars.map(p => p.order ?? 0), -1) + 1;
+    const withOrder = missing.map((d, i) => ({ ...d, order: nextOrder + i }));
+    await seedDefaultPillars(withOrder);
+    showToast(`Added ${missing.map(m => m.name).join(', ')}`);
   }
 }
 
