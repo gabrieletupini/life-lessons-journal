@@ -9,7 +9,7 @@ import {
 
 const ALLOWED_EMAILS = ['gabritupini@gmail.com', 'gabritupini3@gmail.com'];
 
-let db, auth;
+let db, auth, stoaDb;
 let syncStatusCallback = null;
 
 export function initFirebase() {
@@ -23,6 +23,26 @@ export function initFirebase() {
   });
   db = getFirestore(app);
   auth = getAuth(app);
+
+  // Secondary read-only init for Stoa moodLogs (used by Shadow Work)
+  const stoaApp = initializeApp({
+    apiKey: "AIzaSyDJ8D1bau4aPw96CINS6H6KukBI1xXmpk4",
+    authDomain: "stoa-journal-db.firebaseapp.com",
+    projectId: "stoa-journal-db",
+  }, 'stoa-readonly');
+  stoaDb = getFirestore(stoaApp);
+}
+
+// ===== Stoa moodLogs (read-only embed) =====
+export function subscribeToStoaLogs(callback) {
+  return onSnapshot(
+    query(collection(stoaDb, 'moodLogs'), orderBy('date', 'desc')),
+    (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (err) => {
+      console.error('subscribeToStoaLogs error:', err);
+      callback([]);
+    }
+  );
 }
 
 export function onAuthReady(callback) {

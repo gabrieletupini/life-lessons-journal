@@ -2024,3 +2024,290 @@ body.read-only .study-nuance-empty {
   .month-label { font-size: 19px; }
   .form .nuance-row textarea.nuance-text { padding-left: 0; }
 }
+
+/* ===== Shadow Work — trigger UI ===== */
+.pillar-detail-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.btn-trigger {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  border: 1px solid #b85a45;
+  background: rgba(184, 90, 69, 0.08);
+  color: #b85a45;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: 0.01em;
+}
+.btn-trigger:hover {
+  background: #b85a45;
+  color: var(--bg-parchment);
+  border-color: #b85a45;
+}
+
+/* Shadow stats panel */
+.shadow-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 18px;
+  margin: 14px 0 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid #311b92;
+  border-radius: var(--radius);
+}
+.shadow-stat { display: flex; flex-direction: column; min-width: 110px; }
+.shadow-stat-num {
+  font-family: var(--display);
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--ink-dark);
+  line-height: 1.1;
+}
+.shadow-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  margin-top: 4px;
+  font-family: var(--serif);
+}
+.shadow-stat-emos { flex: 1 1 220px; }
+.shadow-stat-emo-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.shadow-stat-emo {
+  font-size: 0.78rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chip-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip-color) 35%, transparent);
+  color: color-mix(in srgb, var(--chip-color) 90%, #2c1810);
+}
+.shadow-stat-emo-n {
+  opacity: 0.7;
+  font-weight: 600;
+  margin-left: 3px;
+  font-family: var(--serif);
+}
+.shadow-stats-empty {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Emotion chips (trigger form) */
+.emotion-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.emotion-chip {
+  font-family: var(--serif);
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--chip-color) 45%, transparent);
+  background: color-mix(in srgb, var(--chip-color) 8%, transparent);
+  color: color-mix(in srgb, var(--chip-color) 85%, #2c1810);
+  cursor: pointer;
+  transition: all .12s;
+}
+.emotion-chip:hover {
+  background: color-mix(in srgb, var(--chip-color) 18%, transparent);
+}
+.emotion-chip.active {
+  background: var(--chip-color);
+  color: var(--bg-parchment);
+  border-color: var(--chip-color);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--chip-color) 40%, transparent);
+}
+
+.emotion-chip-static {
+  display: inline-block;
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chip-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip-color) 30%, transparent);
+  color: color-mix(in srgb, var(--chip-color) 88%, #2c1810);
+  font-family: var(--serif);
+  margin: 2px 4px 2px 0;
+}
+
+/* Intensity slider */
+.intensity-slider {
+  width: 100%;
+  accent-color: #b85a45;
+  margin-top: 6px;
+}
+
+/* Trigger view in lesson modal */
+.lv-trigger {
+  background: linear-gradient(180deg, rgba(184, 90, 69, 0.05), transparent 80%);
+  border: 1px solid color-mix(in srgb, #b85a45 30%, transparent);
+  border-left: 3px solid #b85a45;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.lv-trigger-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.lv-trigger-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: #b85a45;
+  color: var(--bg-parchment);
+  padding: 3px 9px;
+  border-radius: 3px;
+}
+.lv-trigger-time {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+}
+.lv-trigger-emotions { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+
+.trigger-intensity-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.trigger-intensity-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(62, 39, 35, 0.1);
+  overflow: hidden;
+}
+.trigger-intensity-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c97a5a, #b85a45 60%, #8b3a3a);
+}
+.trigger-intensity-num {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+  min-width: 40px;
+  text-align: right;
+}
+
+.lv-trigger-row { margin-bottom: 10px; }
+.lv-trigger-row:last-child { margin-bottom: 0; }
+.lv-trigger-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  margin-bottom: 3px;
+}
+.lv-trigger-text {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  color: var(--ink-dark);
+  line-height: 1.55;
+}
+.lv-essay {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* Calendar trigger chips */
+.cal-chip-trigger {
+  background: rgba(184, 90, 69, 0.08);
+  font-weight: 600;
+}
+.cal-chip-intensity {
+  display: inline-block;
+  background: #b85a45;
+  color: var(--bg-parchment);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 4px;
+  font-family: var(--serif);
+}
+
+/* Stoa pill on calendar */
+.cal-stoa {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  padding: 2px 7px 2px 6px;
+  border-radius: 999px;
+  background: rgba(135, 160, 123, 0.18);
+  border: 1px solid rgba(93, 106, 58, 0.45);
+  color: var(--green-aged);
+  margin: 2px 0;
+  cursor: pointer;
+  font-family: var(--serif);
+  font-style: italic;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all .12s;
+}
+.cal-stoa:hover {
+  background: rgba(135, 160, 123, 0.35);
+}
+.cal-stoa-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green-aged);
+  flex-shrink: 0;
+}
+
+/* Stoa read-only view */
+.stoa-view-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.stoa-badge {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: rgba(93, 106, 58, 0.2);
+  color: var(--green-aged);
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-family: var(--serif);
+  font-weight: 600;
+}
+#sv-date {
+  font-family: var(--serif);
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-style: italic;
+}
+#sv-emotions {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--ink-dark);
+  margin: 8px 0 14px;
+  letter-spacing: 0.01em;
+}
+.sv-row {
+  margin-top: 12px;
+  font-family: var(--serif);
+  color: var(--ink);
+  line-height: 1.55;
+}
+.sv-row strong {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+.sv-row ul { margin: 0; padding-left: 1.2em; }
+.sv-row li { margin: 2px 0; }
+.sv-note-body { white-space: pre-wrap; }

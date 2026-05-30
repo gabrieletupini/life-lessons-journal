@@ -3,6 +3,7 @@ import {
   subscribeToPillars, createPillar, updatePillar, deletePillar,
   subscribeToLessons, createLesson, updateLesson, deleteLesson,
   subscribeToStudyNuances, createStudyNuance, updateStudyNuance, deleteStudyNuance,
+  subscribeToStoaLogs,
   seedDefaultPillars, exportAll, importAll,
 } from './firebase.js';
 import { STUDIES } from './studies.js';
@@ -18,6 +19,24 @@ const PILLAR_TAG_SUGGESTIONS = {
   'Pickup':       ['confidence', 'approach', 'attraction', 'body-language', 'social-skills', 'frame', 'vibe', 'openers'],
   'Shadow Work':  ['trigger', 'anxiety', 'anger', 'fear', 'shame', 'projection', 'essay', 'pattern', 'somatic', 'integration'],
 };
+
+// Emotions surfaced in the trigger form (negative-emotion focus, expanded
+// beyond Stoa's 4 core so the user can land on the precise one).
+const TRIGGER_EMOTIONS = [
+  { key: 'anger',         label: 'Anger',         color: '#b85a45' },
+  { key: 'frustration',   label: 'Frustration',   color: '#c97a5a' },
+  { key: 'resentment',    label: 'Resentment',    color: '#9b4f3f' },
+  { key: 'sadness',       label: 'Sadness',       color: '#5a6f8b' },
+  { key: 'grief',         label: 'Grief',         color: '#4a5670' },
+  { key: 'loneliness',    label: 'Loneliness',    color: '#6b7a96' },
+  { key: 'anxiety',       label: 'Anxiety',       color: '#a17a4a' },
+  { key: 'fear',          label: 'Fear',          color: '#7a5a3a' },
+  { key: 'shame',         label: 'Shame',         color: '#8b4a5f' },
+  { key: 'guilt',         label: 'Guilt',         color: '#7a4555' },
+  { key: 'jealousy',      label: 'Jealousy',      color: '#6e7a3a' },
+  { key: 'helplessness',  label: 'Helplessness',  color: '#7a7a7a' },
+  { key: 'hypochondria',  label: 'Hypochondria',  color: '#8b6b45' },
+];
 
 // Legacy pillar names removed in the 2-pillar refactor. Empty ones get
 // auto-deleted on next load; ones with lessons are left alone for the user.
@@ -52,6 +71,8 @@ let currentGlobalSearch = '';
 let editingPillarColor = PALETTE[0];
 let editingStars = 0;
 let didSeedAttempt = false;
+let stoaLogs = [];
+let editingTriggerEmotions = [];
 
 // ===== DOM =====
 const $ = (id) => document.getElementById(id);
@@ -195,9 +216,18 @@ function startApp() {
     }
   });
 
+  subscribeToStoaLogs((logs) => {
+    stoaLogs = logs;
+    if (currentPillarId && isShadowWorkPillar(pillars.find(p => p.id === currentPillarId))) {
+      renderPillarDetail();
+    }
+  });
+
   setupNav();
   setupPillarModal();
   setupManageModal();
+  setupTriggerModal();
+  setupStoaViewModal();
   setupLessonModal();
   setupLessonViewModal();
   setupStudyNuanceModal();
@@ -298,6 +328,24 @@ function setupNav() {
   });
 
   $('add-lesson-btn').addEventListener('click', () => openLessonModal());
+  $('add-trigger-btn').addEventListener('click', () => openTriggerModal());
+}
+
+function isShadowWorkPillar(p) {
+  return p && p.name === 'Shadow Work';
+}
+
+function dateKeyFromAny(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value.seconds != null) {
+    const d = new Date(value.seconds * 1000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  if (value instanceof Date) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  }
+  return null;
 }
 
 // ===== Pillars grid =====
@@ -535,6 +583,19 @@ function renderPillarDetail() {
   pillarDetailName.style.color = p.color || 'var(--ink-dark)';
   pillarDetailIcon.textContent = p.icon || '';
 
+  // Shadow Work specifics: extra "Log Trigger" button + intensity stats
+  const triggerBtn = $('add-trigger-btn');
+  const shadowStats = $('shadow-stats');
+  if (isShadowWorkPillar(p)) {
+    triggerBtn.classList.remove('hidden');
+    renderShadowStats(p);
+    shadowStats.classList.remove('hidden');
+  } else {
+    triggerBtn.classList.add('hidden');
+    shadowStats.classList.add('hidden');
+    shadowStats.innerHTML = '';
+  }
+
   renderPillarStudies(p);
 
   // Reflect the active view in the toggle
@@ -588,6 +649,7 @@ const WEEKDAY_LABELS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function renderLessonsCalendar(pillar, items) {
   const cal = document.getElementById('lessons-calendar');
+  const showStoa = isShadowWorkPillar(pillar);
 
   // Group lessons by date key
   const byDate = new Map();
@@ -599,6 +661,15 @@ function renderLessonsCalendar(pillar, items) {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     if (!byDate.has(key)) byDate.set(key, []);
     byDate.get(key).push(l);
+  }
+
+  // Index Stoa moodLogs by date key (only for Shadow Work)
+  const stoaByDate = new Map();
+  if (showStoa) {
+    for (const log of stoaLogs) {
+      const key = dateKeyFromAny(log.date);
+      if (key) stoaByDate.set(key, log);
+    }
   }
 
   const today = new Date();
@@ -614,18 +685,33 @@ function renderLessonsCalendar(pillar, items) {
     const key = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const dayLessons = byDate.get(key) || [];
     const isToday = isCurrentMonth && d === today.getDate();
-    const chips = dayLessons.slice(0, 2).map(l => `
-      <div class="cal-chip" data-lesson-id="${escapeHtml(l.id)}"
-           style="border-left-color:${pillar.color}"
-           title="${escapeHtml(l.title)}">${escapeHtml(truncate(l.title, 22))}</div>
-    `).join('');
+    const chips = dayLessons.slice(0, 2).map(l => {
+      const isTrigger = l.kind === 'trigger';
+      const cls = isTrigger ? 'cal-chip cal-chip-trigger' : 'cal-chip';
+      const intensity = isTrigger && l.trigger && l.trigger.intensity != null
+        ? `<span class="cal-chip-intensity">${l.trigger.intensity}</span>` : '';
+      const titleAttr = isTrigger ? `Trigger · ${l.title}` : l.title;
+      return `
+        <div class="${cls}" data-lesson-id="${escapeHtml(l.id)}"
+             style="border-left-color:${isTrigger ? '#b85a45' : pillar.color}"
+             title="${escapeHtml(titleAttr)}">${intensity}${escapeHtml(truncate(l.title, 18))}</div>
+      `;
+    }).join('');
     const more = dayLessons.length > 2
       ? `<div class="cal-more" data-date="${key}">+${dayLessons.length - 2} more</div>`
+      : '';
+    const stoaLog = showStoa ? stoaByDate.get(key) : null;
+    const stoaPill = stoaLog
+      ? `<div class="cal-stoa" data-stoa-id="${escapeHtml(stoaLog.id)}"
+              title="Stoa mood: ${escapeHtml((stoaLog.emotions || []).join(', ') || 'logged')}">
+           <span class="cal-stoa-dot"></span>${escapeHtml(((stoaLog.emotions || [])[0] || 'mood'))}
+         </div>`
       : '';
     cellsHtml.push(`
       <div class="cal-day${isToday ? ' cal-day-today' : ''}${dayLessons.length ? ' cal-day-has' : ''}"
            data-date="${key}">
         <div class="cal-day-num">${d}</div>
+        ${stoaPill}
         ${chips}
         ${more}
       </div>
@@ -677,6 +763,15 @@ function renderLessonsCalendar(pillar, items) {
       e.stopPropagation();
       const l = lessons.find(x => x.id === chip.dataset.lessonId);
       if (l) openLessonView(l);
+    });
+  });
+
+  // Stoa pills open the read-only Stoa view
+  cal.querySelectorAll('.cal-stoa').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const log = stoaLogs.find(x => x.id === pill.dataset.stoaId);
+      if (log) openStoaView(log);
     });
   });
 
@@ -1306,7 +1401,8 @@ function setupLessonViewModal() {
     const lesson = lessons.find(l => l.id === $('lesson-view-modal').dataset.lessonId);
     if (!lesson) return;
     closeModal('lesson-view-modal');
-    openLessonModal(lesson);
+    if (lesson.kind === 'trigger') openTriggerModal(lesson);
+    else openLessonModal(lesson);
   });
 
   $('lv-copy-btn').addEventListener('click', async () => {
@@ -1337,10 +1433,55 @@ function openLessonView(lesson) {
   $('lv-stars').innerHTML = renderStars(lesson.importance || 0);
   const tagsEl = $('lv-tags');
   tagsEl.innerHTML = (lesson.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('');
-  $('lv-description').innerHTML = sanitizeRichHtml(lesson.description || '');
+  // For triggers, render structured fields above the (usually empty) description.
+  if (lesson.kind === 'trigger' && lesson.trigger) {
+    $('lv-description').innerHTML = renderTriggerView(lesson.trigger) +
+      (lesson.description ? `<div class="lv-essay">${sanitizeRichHtml(lesson.description)}</div>` : '');
+  } else {
+    $('lv-description').innerHTML = sanitizeRichHtml(lesson.description || '');
+  }
   renderLinkedAddendums(lesson);
   renderLinkedStudies(lesson);
   openModal('lesson-view-modal');
+}
+
+function renderTriggerView(t) {
+  const emoChips = (t.emotions || []).map(k => {
+    const info = TRIGGER_EMOTIONS.find(e => e.key === k);
+    const label = info ? info.label : k;
+    const color = info ? info.color : '#888';
+    return `<span class="emotion-chip-static" style="--chip-color:${color}">${escapeHtml(label)}</span>`;
+  }).join('');
+
+  const intensity = Number.isFinite(t.intensity) ? t.intensity : null;
+  const intensityBar = intensity != null ? `
+    <div class="trigger-intensity-bar">
+      <div class="trigger-intensity-track">
+        <div class="trigger-intensity-fill" style="width:${intensity * 10}%"></div>
+      </div>
+      <span class="trigger-intensity-num">${intensity}/10</span>
+    </div>` : '';
+
+  const time = t.timeOfDay ? `<span class="lv-trigger-time">${escapeHtml(t.timeOfDay)}</span>` : '';
+  const row = (label, value) => value && value.trim()
+    ? `<div class="lv-trigger-row"><div class="lv-trigger-label">${escapeHtml(label)}</div><div class="lv-trigger-text">${escapeHtml(value).replace(/\n/g, '<br>')}</div></div>`
+    : '';
+
+  return `
+    <div class="lv-trigger">
+      <div class="lv-trigger-head">
+        <span class="lv-trigger-badge">Trigger</span>
+        ${time}
+        ${emoChips ? `<div class="lv-trigger-emotions">${emoChips}</div>` : ''}
+      </div>
+      ${intensityBar}
+      ${row('What happened',  t.source)}
+      ${row('Body sensations', t.body)}
+      ${row('Inner narrative', t.thoughts)}
+      ${row('Response',        t.response)}
+      ${row('Reframe / insight', t.reframe)}
+    </div>
+  `;
 }
 
 function renderLinkedAddendums(lesson) {
@@ -1386,6 +1527,243 @@ function renderLinkedAddendums(lesson) {
   el.querySelectorAll('[data-action="lv-download-addendum"]').forEach(btn => {
     btn.addEventListener('click', () => downloadAddendum(btn.dataset.nuanceId));
   });
+}
+
+// ===== Trigger modal (Shadow Work) =====
+function setupTriggerModal() {
+  // Emotion chips: build once
+  const chipsEl = $('trigger-emotions');
+  chipsEl.innerHTML = TRIGGER_EMOTIONS.map(e => `
+    <button type="button" class="emotion-chip" data-key="${e.key}"
+            style="--chip-color:${e.color}">${escapeHtml(e.label)}</button>
+  `).join('');
+  chipsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.emotion-chip');
+    if (!btn) return;
+    const key = btn.dataset.key;
+    const idx = editingTriggerEmotions.indexOf(key);
+    if (idx >= 0) editingTriggerEmotions.splice(idx, 1);
+    else editingTriggerEmotions.push(key);
+    btn.classList.toggle('active');
+  });
+
+  // Live label for the intensity slider
+  const slider = $('trigger-intensity');
+  const label = $('trigger-intensity-label');
+  slider.addEventListener('input', () => { label.textContent = slider.value; });
+
+  $('trigger-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = $('trigger-id').value;
+    const title = $('trigger-title').value.trim();
+    if (!title) return;
+
+    const shadowPillar = pillars.find(p => isShadowWorkPillar(p));
+    if (!shadowPillar) {
+      showToast('Shadow Work pillar not found', 'error');
+      return;
+    }
+
+    const dateRaw = $('trigger-date').value;
+    const data = {
+      title,
+      description: '',
+      pillarId: shadowPillar.id,
+      date: dateRaw ? new Date(dateRaw) : new Date(),
+      importance: 0,
+      tags: $('trigger-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+      studyIds: [],
+      addendumIds: [],
+      kind: 'trigger',
+      trigger: {
+        source:    $('trigger-source').value.trim(),
+        emotions:  [...editingTriggerEmotions],
+        intensity: parseInt($('trigger-intensity').value, 10),
+        body:      $('trigger-body').value.trim(),
+        thoughts:  $('trigger-thoughts').value.trim(),
+        response:  $('trigger-response').value.trim(),
+        reframe:   $('trigger-reframe').value.trim(),
+        timeOfDay: $('trigger-time').value,
+      },
+    };
+
+    if (id) {
+      await updateLesson(id, data);
+      showToast('Trigger updated');
+    } else {
+      await createLesson(data);
+      showToast('Trigger logged');
+    }
+    closeModal('trigger-modal');
+  });
+
+  $('trigger-delete-btn').addEventListener('click', async () => {
+    const id = $('trigger-id').value;
+    if (!id) return;
+    if (!confirm('Delete this trigger entry?')) return;
+    await deleteLesson(id);
+    closeModal('trigger-modal');
+    closeModal('lesson-view-modal');
+    showToast('Trigger deleted');
+  });
+}
+
+function openTriggerModal(lesson) {
+  if (readOnly) return;
+  $('trigger-modal-title').textContent = lesson ? 'Edit Trigger' : 'Log Trigger';
+  $('trigger-id').value = lesson ? lesson.id : '';
+  $('trigger-title').value = lesson ? lesson.title : '';
+
+  // Date defaults to today, or to the lesson's date
+  const dateInput = $('trigger-date');
+  if (lesson && lesson.date) {
+    const d = lesson.date.seconds ? new Date(lesson.date.seconds * 1000)
+      : (typeof lesson.date === 'string' ? new Date(lesson.date) : lesson.date);
+    dateInput.value = d.toISOString().slice(0, 10);
+  } else {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+
+  const t = (lesson && lesson.trigger) || {};
+  $('trigger-time').value     = t.timeOfDay || guessTimeOfDay();
+  $('trigger-source').value   = t.source   || '';
+  $('trigger-body').value     = t.body     || '';
+  $('trigger-thoughts').value = t.thoughts || '';
+  $('trigger-response').value = t.response || '';
+  $('trigger-reframe').value  = t.reframe  || '';
+  $('trigger-intensity').value = t.intensity != null ? t.intensity : 5;
+  $('trigger-intensity-label').textContent = String(t.intensity != null ? t.intensity : 5);
+  $('trigger-tags').value = lesson && lesson.tags ? lesson.tags.join(', ') : 'trigger';
+
+  // Emotion chips state
+  editingTriggerEmotions = Array.isArray(t.emotions) ? [...t.emotions] : [];
+  document.querySelectorAll('#trigger-emotions .emotion-chip').forEach(btn => {
+    btn.classList.toggle('active', editingTriggerEmotions.includes(btn.dataset.key));
+  });
+
+  $('trigger-delete-btn').classList.toggle('hidden', !lesson);
+
+  openModal('trigger-modal');
+  setTimeout(() => $('trigger-title').focus(), 50);
+}
+
+function guessTimeOfDay() {
+  const h = new Date().getHours();
+  if (h < 11) return 'morning';
+  if (h < 14) return 'midday';
+  if (h < 18) return 'afternoon';
+  if (h < 22) return 'evening';
+  return 'night';
+}
+
+// ===== Stoa view modal (read-only embed) =====
+function setupStoaViewModal() {
+  // No interactivity beyond close button + link to Stoa — already in HTML.
+}
+
+function openStoaView(log) {
+  $('sv-date').textContent = formatStoaDate(log.date);
+  const emotions = Array.isArray(log.emotions) ? log.emotions : [];
+  $('sv-emotions').textContent = emotions.length ? emotions.join(' · ') : '(no emotions logged)';
+
+  const sleepRow = $('sv-sleep');
+  if (log.sleep != null && log.sleep !== '') {
+    sleepRow.innerHTML = `<strong>Sleep:</strong> ${escapeHtml(String(log.sleep))}`;
+    sleepRow.classList.remove('hidden');
+  } else {
+    sleepRow.classList.add('hidden');
+  }
+
+  const gratRow = $('sv-gratitudes');
+  const grats = Array.isArray(log.gratitudes) ? log.gratitudes.filter(Boolean) : [];
+  if (grats.length) {
+    gratRow.innerHTML = `<strong>Gratitudes:</strong><ul>${grats.map(g => `<li>${escapeHtml(g)}</li>`).join('')}</ul>`;
+    gratRow.classList.remove('hidden');
+  } else {
+    gratRow.classList.add('hidden');
+  }
+
+  const notesRow = $('sv-notes');
+  if (log.notes && log.notes.trim()) {
+    notesRow.innerHTML = `<strong>Notes:</strong><div class="sv-note-body">${escapeHtml(log.notes).replace(/\n/g, '<br>')}</div>`;
+    notesRow.classList.remove('hidden');
+  } else {
+    notesRow.classList.add('hidden');
+  }
+
+  openModal('stoa-view-modal');
+}
+
+function formatStoaDate(raw) {
+  const key = dateKeyFromAny(raw);
+  if (!key) return '';
+  const d = new Date(key + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// ===== Shadow Work stats =====
+function renderShadowStats(pillar) {
+  const el = $('shadow-stats');
+  const triggers = lessons.filter(l => l.pillarId === pillar.id && l.kind === 'trigger' && l.trigger);
+  if (triggers.length === 0) {
+    el.innerHTML = `
+      <div class="shadow-stats-empty">
+        No triggers logged yet. Click <strong>+ Log Trigger</strong> when something stirs you up.
+        Intensity will track here as you build the dataset.
+      </div>`;
+    return;
+  }
+
+  // Sort by date desc, take last 30 days
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const recent = triggers.filter(l => {
+    const ts = dateValue(l);
+    return ts && new Date(ts) >= cutoff;
+  });
+
+  const allIntensities = triggers.map(l => l.trigger.intensity).filter(n => Number.isFinite(n));
+  const recentIntensities = recent.map(l => l.trigger.intensity).filter(n => Number.isFinite(n));
+  const avgAll = allIntensities.length
+    ? (allIntensities.reduce((a, b) => a + b, 0) / allIntensities.length).toFixed(1) : '—';
+  const avgRecent = recentIntensities.length
+    ? (recentIntensities.reduce((a, b) => a + b, 0) / recentIntensities.length).toFixed(1) : '—';
+
+  // Top emotions
+  const emoCount = new Map();
+  triggers.forEach(l => (l.trigger.emotions || []).forEach(e => {
+    emoCount.set(e, (emoCount.get(e) || 0) + 1);
+  }));
+  const topEmotions = [...emoCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+  el.innerHTML = `
+    <div class="shadow-stat">
+      <div class="shadow-stat-num">${triggers.length}</div>
+      <div class="shadow-stat-label">total triggers</div>
+    </div>
+    <div class="shadow-stat">
+      <div class="shadow-stat-num">${avgRecent}</div>
+      <div class="shadow-stat-label">avg intensity / 30d</div>
+    </div>
+    <div class="shadow-stat">
+      <div class="shadow-stat-num">${avgAll}</div>
+      <div class="shadow-stat-label">avg intensity / all</div>
+    </div>
+    <div class="shadow-stat shadow-stat-emos">
+      <div class="shadow-stat-label">most frequent emotions</div>
+      <div class="shadow-stat-emo-list">
+        ${topEmotions.length
+          ? topEmotions.map(([k, n]) => {
+              const info = TRIGGER_EMOTIONS.find(e => e.key === k);
+              const label = info ? info.label : k;
+              const color = info ? info.color : '#888';
+              return `<span class="shadow-stat-emo" style="--chip-color:${color}">${escapeHtml(label)} <span class="shadow-stat-emo-n">${n}</span></span>`;
+            }).join('')
+          : '<span style="color:var(--ink-muted)">—</span>'
+        }
+      </div>
+    </div>
+  `;
 }
 
 // ===== Export / Import =====

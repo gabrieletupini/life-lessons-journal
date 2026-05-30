@@ -76,9 +76,13 @@
         <span id="pillar-detail-icon"></span>
         <h2 id="pillar-detail-name"></h2>
       </div>
-      <button id="add-lesson-btn" class="btn-primary">+ New Lesson</button>
+      <div class="pillar-detail-actions">
+        <button id="add-trigger-btn" class="btn-trigger hidden">+ Log Trigger</button>
+        <button id="add-lesson-btn" class="btn-primary">+ New Lesson</button>
+      </div>
     </div>
     <div id="pillar-studies" class="pillar-studies hidden"></div>
+    <div id="shadow-stats" class="shadow-stats hidden"></div>
 
     <div class="pillar-view-toggle" id="pillar-view-toggle">
       <button data-view="calendar" class="active">📅 Calendar</button>
@@ -206,6 +210,92 @@
     <div class="form-actions">
       <button id="lv-copy-btn">Copy</button>
       <button id="lv-edit-btn" class="btn-primary">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Trigger entry (Shadow Work) -->
+<div id="trigger-modal" class="modal" data-modal="trigger-modal">
+  <div class="modal-content modal-large">
+    <button class="modal-close" data-close>×</button>
+    <h3 id="trigger-modal-title">Log Trigger</h3>
+    <p class="modal-sub">Track what set off the negative emotion, sit with it, and shape your response. Over time, intensity should fall.</p>
+    <form id="trigger-form" class="form">
+      <input type="hidden" id="trigger-id">
+
+      <label>Title <span class="hint">(short label — "Argument with X", "Work email", "Late at night")</span>
+        <input type="text" id="trigger-title" required maxlength="120" placeholder="What do you want to call this trigger?">
+      </label>
+
+      <div class="form-row">
+        <label class="flex-1">Date<input type="date" id="trigger-date"></label>
+        <label class="flex-1">Time of day
+          <select id="trigger-time">
+            <option value="morning">Morning</option>
+            <option value="midday">Midday</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+            <option value="night">Night</option>
+          </select>
+        </label>
+      </div>
+
+      <label>What happened? <span class="hint">(the trigger — person, situation, thought, sensation)</span>
+        <textarea id="trigger-source" rows="3" required placeholder="E.g. Friend cancelled last minute. Thought about money. Email from boss…"></textarea>
+      </label>
+
+      <label>Emotions <span class="hint">(what came up — pick all that apply)</span>
+        <div id="trigger-emotions" class="emotion-chips"></div>
+      </label>
+
+      <label>Intensity <span class="hint">(<span id="trigger-intensity-label">5</span> / 10)</span>
+        <input type="range" id="trigger-intensity" min="1" max="10" value="5" class="intensity-slider">
+      </label>
+
+      <label>Body sensations <span class="hint">(where in the body — somatic awareness)</span>
+        <textarea id="trigger-body" rows="2" placeholder="Chest tight, jaw clenched, gut sinking, shoulders pulled up…"></textarea>
+      </label>
+
+      <label>Inner narrative <span class="hint">(the thoughts / story your mind told you)</span>
+        <textarea id="trigger-thoughts" rows="3" placeholder="What did the inner voice say? Often the trigger is the thought, not the event."></textarea>
+      </label>
+
+      <label>Response <span class="hint">(what you did, said, or felt urged to do)</span>
+        <textarea id="trigger-response" rows="2" placeholder="Shut down, lashed out, withdrew, drank, scrolled, breathed through it…"></textarea>
+      </label>
+
+      <label>Reframe / insight <span class="hint">(optional — once the wave passes, what's truer?)</span>
+        <textarea id="trigger-reframe" rows="3" placeholder="What would the wiser part of you say about this? Pattern? Belief underneath?"></textarea>
+      </label>
+
+      <label>Tags <span class="hint">(comma-separated)</span>
+        <input type="text" id="trigger-tags" placeholder="trigger, anger, family, …">
+      </label>
+
+      <div class="form-actions">
+        <button type="button" id="trigger-delete-btn" class="btn-danger hidden">Delete</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Stoa moodLog read-only view -->
+<div id="stoa-view-modal" class="modal" data-modal="stoa-view-modal">
+  <div class="modal-content">
+    <button class="modal-close" data-close>×</button>
+    <div class="stoa-view">
+      <div class="stoa-view-head">
+        <span class="stoa-badge">From Stoa</span>
+        <span id="sv-date"></span>
+      </div>
+      <h3 id="sv-emotions">—</h3>
+      <div id="sv-sleep" class="sv-row hidden"></div>
+      <div id="sv-gratitudes" class="sv-row hidden"></div>
+      <div id="sv-notes" class="sv-row hidden"></div>
+    </div>
+    <div class="form-actions">
+      <a id="sv-open-stoa" href="https://gabrieletupini.github.io/stoa/" target="_blank" class="btn-primary">Open in Stoa →</a>
     </div>
   </div>
 </div>
